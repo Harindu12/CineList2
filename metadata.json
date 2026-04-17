@@ -1,0 +1,6 @@
+{
+  "name": "Remix: CineList",
+  "description": "Your personal screen tracker. Search and save movies or TV series to your list.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
