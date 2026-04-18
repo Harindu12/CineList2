@@ -227,11 +227,13 @@ export default function App() {
   const selectedItem = items.find(i => i.id === selectedId);
 
   return (
-    <div className="relative min-h-screen bg-brand-bg w-full max-w-[430px] mx-auto pb-24 overflow-x-hidden font-sans no-scrollbar">
+    <div className="relative min-h-screen bg-brand-bg w-full max-w-[430px] mx-auto pb-24 overflow-clip font-sans no-scrollbar">
       <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
 
-      {/* HEADER */}
-      <div className="pt-[58px] px-6 flex items-center justify-between">
+      {/* STICKY HEADER AREA */}
+      <div className="sticky top-0 z-30 bg-brand-bg/95 backdrop-blur-md pb-0 pt-[24px] border-b border-transparent transition-all">
+        {/* HEADER */}
+        <div className="px-6 flex items-center justify-between">
         <div className="font-serif text-[30px] tracking-[-0.02em] leading-none text-[#1a1714]">
            Watch<em className="italic text-[#a09890] ml-[1px]">list</em>
         </div>
@@ -289,6 +291,7 @@ export default function App() {
           </div>
         ))}
         <div className="w-1 shrink-0 border-b-[2px] border-transparent mb-[-1px]" />
+      </div>
       </div>
 
       {/* LIST CONTENT */}
