@@ -292,28 +292,30 @@ export default function App() {
             {filter === 'All' ? (
               <>
                 <div className="px-[24px] pb-4 flex items-center"><div className="h-[10px] w-24 bg-brand-border/60 rounded-full animate-pulse" /></div>
-                <div className="flex gap-3 px-[24px] overflow-x-hidden pb-4 flex-nowrap -ml-2 pl-[32px]">
+                <div className="flex gap-3 px-[24px] overflow-x-hidden pb-6 flex-nowrap -ml-2 pl-[32px]">
                   {[1, 2, 3, 4].map(i => <PosterCardSkeleton key={i} />)}
                 </div>
                 
-                <div className="pt-6 px-[24px] pb-2 flex items-center"><div className="h-[10px] w-20 bg-brand-border/60 rounded-full animate-pulse" /></div>
-                <div className="px-[24px] flex flex-col gap-[10px]">
-                  {[1, 2, 3].map(i => <ListCardSkeleton key={i} />)}
+                <div className="bg-[#e8e5df] min-h-screen pt-2 rounded-t-[24px]">
+                  <div className="pt-8 px-[24px] pb-4 flex items-center"><div className="h-[10px] w-20 bg-[#d0cac3] rounded-full animate-pulse" /></div>
+                  <div className="px-[24px] flex flex-col gap-[10px]">
+                    {[1, 2, 3].map(i => <ListCardSkeleton key={i} />)}
+                  </div>
                 </div>
               </>
             ) : (
-              <>
-                <div className="pt-2 px-[24px] pb-2 flex items-center"><div className="h-[10px] w-24 bg-brand-border/60 rounded-full animate-pulse" /></div>
+              <div className="bg-[#e8e5df] min-h-screen pt-2 rounded-t-[24px]">
+                <div className="pt-8 px-[24px] pb-4 flex items-center"><div className="h-[10px] w-24 bg-[#d0cac3] rounded-full animate-pulse" /></div>
                 <div className="px-[24px] flex flex-col gap-[10px]">
                   {[1, 2, 3, 4, 5].map(i => <ListCardSkeleton key={i} />)}
                 </div>
-              </>
+              </div>
             )}
          </div>
       ) : filter !== 'All' ? (
          // Filtered View
-         <div className="animate-in fade-in duration-300 pb-10">
-            <div className="px-[24px] pb-[12px] pt-[24px] text-[11px] font-bold tracking-[0.08em] uppercase text-[#9b9890]">{filter}</div>
+         <div className="animate-in fade-in duration-300 pb-10 bg-[#e8e5df] min-h-screen rounded-t-[24px] mt-2">
+            <div className="px-[24px] pb-[16px] pt-[32px] text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">{filter}</div>
             <div className="px-[24px] flex flex-col gap-[10px]">
               {filteredItems.map((item, i) => (
                  <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
@@ -325,53 +327,54 @@ export default function App() {
          // Main All View
          <div className="animate-in fade-in duration-300 pb-10 mt-2">
             {recentlyAdded.length > 0 && (
-              <div className="mb-[24px]">
-                <div className="flex gap-3 px-[24px] overflow-x-auto no-scrollbar pb-2 snap-x -ml-2 pl-[32px]">
+              <div className="mb-0">
+                <div className="flex gap-3 px-[24px] overflow-x-auto no-scrollbar pb-0 snap-x -ml-2 pl-[32px]">
                   {recentlyAdded.map((item, i) => (
                     <PosterCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
                   ))}
                   <div className="w-[12px] shrink-0" />
                 </div>
-                <div className="h-px bg-[#e0ddd6] mx-[24px] mt-6" />
               </div>
             )}
 
-            {watchingItems.length > 0 && (
-               <div className="mb-[24px]">
-                 <div className="px-[24px] pb-[12px] text-[11px] font-bold tracking-[0.08em] uppercase text-[#9b9890]">Watching now</div>
-                 <div className="px-[24px] flex flex-col gap-[10px]">
-                   {watchingItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
+            <div className="bg-[#e8e5df] min-h-screen pb-20 pt-[24px] mt-[24px] rounded-t-[24px] shadow-[0_-4px_16px_rgba(0,0,0,0.02)]">
+              {watchingItems.length > 0 && (
+                 <div className="mb-[24px]">
+                   <div className="px-[24px] pb-[16px] pt-[0px] text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">Watching now</div>
+                   <div className="px-[24px] flex flex-col gap-[10px]">
+                     {watchingItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
+                   </div>
                  </div>
-               </div>
-            )}
+              )}
 
-            {planItems.length > 0 && (
-               <div className="mb-[24px]">
-                 <div className="px-[24px] pb-[12px] text-[11px] font-bold tracking-[0.08em] uppercase text-[#9b9890]">Plan to watch</div>
-                 <div className="px-[24px] flex flex-col gap-[10px]">
-                   {planItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
+              {planItems.length > 0 && (
+                 <div className="mb-[24px]">
+                   <div className="px-[24px] pb-[16px] pt-[24px] text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">Plan to watch</div>
+                   <div className="px-[24px] flex flex-col gap-[10px]">
+                     {planItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
+                   </div>
                  </div>
-               </div>
-            )}
+              )}
 
-            {completedItems.length > 0 && (
-               <div className="mb-[24px]">
-                 <div className="px-[24px] pb-[12px] text-[11px] font-bold tracking-[0.08em] uppercase text-[#9b9890]">Completed</div>
-                 <div className="px-[24px] flex flex-col gap-[10px]">
-                   {completedItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
+              {completedItems.length > 0 && (
+                 <div className="mb-[24px]">
+                   <div className="px-[24px] pb-[16px] pt-[24px] text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">Completed</div>
+                   <div className="px-[24px] flex flex-col gap-[10px]">
+                     {completedItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
+                   </div>
                  </div>
-               </div>
-            )}
+              )}
 
-            {items.length === 0 && (
-               <div className="px-8 py-16 flex flex-col items-center text-center animate-in fade-in duration-500">
-                  <div className="w-[72px] h-[72px] bg-white rounded-full border border-[#e0ddd6] flex items-center justify-center mb-5 text-[#9b9890] shadow-sm">
-                    <List size={28} strokeWidth={1.5} />
-                  </div>
-                  <h3 className="text-[22px] font-serif text-[#1a1917] mb-2 tracking-[-0.02em]">Your list is empty</h3>
-                  <p className="text-[#9b9890] text-[14px] max-w-[240px] leading-[1.5] font-medium">Tap the plus icon below or use the search bar to add titles.</p>
-               </div>
-            )}
+              {items.length === 0 && (
+                 <div className="px-8 py-16 flex flex-col items-center text-center animate-in fade-in duration-500">
+                    <div className="w-[72px] h-[72px] bg-white rounded-full border border-[#e0ddd6] flex items-center justify-center mb-5 text-[#9b9890] shadow-sm">
+                      <List size={28} strokeWidth={1.5} />
+                    </div>
+                    <h3 className="text-[22px] font-serif text-[#1a1917] mb-2 tracking-[-0.02em]">Your list is empty</h3>
+                    <p className="text-[#9b9890] text-[14px] max-w-[240px] leading-[1.5] font-medium">Tap the plus icon below or use the search bar to add titles.</p>
+                 </div>
+              )}
+            </div>
          </div>
       )}
       </>
@@ -480,7 +483,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* FLOATING BOTTOM BAR */}
-      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#1a1917]/90 backdrop-blur-xl rounded-[24px] px-6 py-3 flex items-center justify-between z-[50] shadow-[0_12px_40px_rgba(0,0,0,0.2)] border border-[#333] w-[calc(100%-48px)] max-w-[320px]">
+      <div className="fixed bottom-[20px] left-1/2 -translate-x-1/2 bg-[#1a1917]/90 backdrop-blur-xl rounded-[24px] px-6 py-3 flex items-center justify-between z-[50] shadow-[0_12px_40px_rgba(0,0,0,0.2)] border border-[#333] w-[calc(100%-40px)] max-w-[320px]">
         <button onClick={() => setActiveView('home')} className={`flex flex-col items-center gap-1 ${activeView === 'home' ? 'text-white' : 'text-[#b8b5ad] hover:text-white'} transition-colors cursor-pointer w-16`}>
            <Home size={22} strokeWidth={2.2} />
            <span className="text-[10px] font-bold tracking-wide">Home</span>
@@ -504,11 +507,11 @@ function PosterCard({ item, index, onClick }: { item: TitleItem, index: number, 
   return (
      <div 
        onClick={onClick} 
-       className="shrink-0 w-[96px] cursor-pointer active:opacity-70 hover:-translate-y-1 transition-all animate-list-item"
+       className="shrink-0 w-[120px] cursor-pointer active:opacity-70 hover:-translate-y-1 transition-all animate-list-item"
        style={{ animationDelay: `${index * 0.05 + 0.05}s` }}
      >
-        <div className="w-[96px] h-[144px] rounded-[10px] bg-[#e0dbd4] border border-[#e0ddd6] flex items-center justify-center text-[36px] mb-2 overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
-          {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (item.type === 'movie' ? '🎬' : '📺')}
+        <div className="w-[120px] h-[160px] rounded-[10px] bg-[#e0dbd4] border border-[#e0ddd6] flex items-center justify-center text-[36px] mb-2 overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] relative">
+          {item.poster ? <img src={item.poster} className="w-full h-full object-cover absolute inset-0" /> : (item.type === 'movie' ? '🎬' : '📺')}
         </div>
         <div className="text-[13px] font-semibold text-[#1a1917] break-words line-clamp-1 whitespace-nowrap overflow-hidden text-ellipsis mb-0.5 tracking-tight">{item.title}</div>
         <div className="text-[11px] text-[#9b9890] capitalize">{item.year || 'Unknown'} · {item.type}</div>
@@ -682,8 +685,8 @@ function ListCardSkeleton() {
 
 function PosterCardSkeleton() {
   return (
-     <div className="shrink-0 w-[96px] animate-pulse">
-        <div className="w-[96px] h-[144px] rounded-[10px] bg-[#e0dbd4] mb-2" />
+     <div className="shrink-0 w-[120px] animate-pulse">
+        <div className="w-[120px] h-[160px] rounded-[10px] bg-[#e0dbd4] mb-2" />
         <div className="h-[10px] bg-[#e0dbd4] rounded-full w-5/6 mb-1.5" />
         <div className="h-[8px] bg-[#e0dbd4]/70 rounded-full w-2/3" />
      </div>
