@@ -28,6 +28,7 @@ interface TitleItem {
 
 export default function App() {
   const [items, setItems] = useState<TitleItem[]>([]);
+  const [isInitializing, setIsInitializing] = useState(true);
   
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -52,6 +53,7 @@ export default function App() {
       // Sort by creation time (id) descending
       fbItems.sort((a, b) => b.id - a.id);
       setItems(fbItems);
+      setIsInitializing(false);
     });
     
     return () => sub();
@@ -254,8 +256,12 @@ export default function App() {
       </div>
 
       {/* SUMMARY */}
-      <div className="pt-[18px] px-6 text-[13px] text-brand-sub tracking-[0.1px]">
-        {items.length} titles &nbsp;·&nbsp; {watchingItems.length} watching &nbsp;·&nbsp; {completedItems.length} completed
+      <div className="pt-[18px] px-6 text-[13px] text-brand-sub tracking-[0.1px] flex items-center h-5">
+        {isInitializing ? (
+           <div className="h-3 w-48 bg-brand-border/60 rounded-full animate-pulse flex-none" />
+        ) : (
+           <>{items.length} titles &nbsp;·&nbsp; {watchingItems.length} watching &nbsp;·&nbsp; {completedItems.length} completed</>
+        )}
       </div>
 
       {/* SEARCH OR ADD PREVIEW */}
@@ -283,7 +289,31 @@ export default function App() {
       </div>
 
       {/* LIST CONTENT */}
-      {filter !== 'All' ? (
+      {isInitializing ? (
+         <div className="animate-in fade-in duration-300 pb-10">
+            {filter === 'All' ? (
+              <>
+                <div className="pt-6 px-6 pb-2.5 flex items-center"><div className="h-2 w-24 bg-brand-border/60 rounded-full animate-pulse" /></div>
+                <div className="flex gap-3 px-6 overflow-x-hidden py-2 -my-2 flex-nowrap">
+                  {[1, 2, 3, 4].map(i => <PosterCardSkeleton key={i} />)}
+                </div>
+                <div className="h-px bg-brand-border mx-6 mt-5" />
+                
+                <div className="pt-5 px-6 pb-2.5 flex items-center"><div className="h-2 w-20 bg-brand-border/60 rounded-full animate-pulse" /></div>
+                <div className="px-6 flex flex-col gap-2">
+                  {[1, 2, 3].map(i => <ListCardSkeleton key={i} />)}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="pt-6 px-6 pb-2.5 flex items-center"><div className="h-2 w-24 bg-brand-border/60 rounded-full animate-pulse" /></div>
+                <div className="px-6 flex flex-col gap-2">
+                  {[1, 2, 3, 4, 5].map(i => <ListCardSkeleton key={i} />)}
+                </div>
+              </>
+            )}
+         </div>
+      ) : filter !== 'All' ? (
          // Filtered View
          <div className="animate-in fade-in duration-300 pb-10">
             <div className="pt-6 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">{filter}</div>
@@ -600,5 +630,28 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
       </AnimatePresence>
 
     </motion.div>
+  )
+}
+
+function ListCardSkeleton() {
+  return (
+    <div className="bg-white rounded-[14px] flex items-center gap-3 p-[10px_14px_10px_10px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] animate-pulse">
+       <div className="w-[48px] h-[64px] rounded-[8px] bg-[#e0dbd4] shrink-0" />
+       <div className="flex-1 flex flex-col justify-center gap-2 py-1">
+         <div className="h-[12px] bg-[#e0dbd4] rounded-full w-3/4" />
+         <div className="h-[10px] bg-[#e0dbd4]/70 rounded-full w-1/2" />
+       </div>
+       <div className="w-16 h-[22px] rounded-[20px] bg-[#e0dbd4]/60 shrink-0" />
+    </div>
+  )
+}
+
+function PosterCardSkeleton() {
+  return (
+     <div className="shrink-0 w-[110px] animate-pulse">
+        <div className="w-[110px] h-[155px] rounded-[10px] bg-[#e0dbd4] mb-2" />
+        <div className="h-[10px] bg-[#e0dbd4] rounded-full w-5/6 mb-1.5" />
+        <div className="h-[8px] bg-[#e0dbd4]/70 rounded-full w-2/3" />
+     </div>
   )
 }
