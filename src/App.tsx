@@ -24,7 +24,11 @@ interface TitleItem {
 }
 
 export default function App() {
-  const [items, setItems] = useState<TitleItem[]>([]);
+  const [items, setItems] = useState<TitleItem[]>(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  });
+  
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [nameQuery, setNameQuery] = useState('');
@@ -35,11 +39,8 @@ export default function App() {
   const [activeNav, setActiveNav] = useState('Home');
 
   useEffect(() => {
-    fetch('/api/items')
-      .then(res => res.json())
-      .then(data => setItems(data))
-      .catch(console.error);
-  }, []);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }, [items]);
 
   const handleAdd = async () => {
     if (!nameQuery.trim()) return;
@@ -52,8 +53,8 @@ export default function App() {
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Find details for the movie or TV show: "${nameQuery}". Use the googleSearch tool to fetch accurate metadata. Return a raw JSON object only. Do NOT provide a poster URL.`,
+        tools: [{ googleSearch: {} }],
         config: {
-          tools: [{ googleSearch: {} }],
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -83,7 +84,8 @@ export default function App() {
         return;
       }
 
-      const newItemLocal: any = {
+      const newItem: TitleItem = {
+        id: Date.now(),
         title: title,
         type: info.type === 'tv' ? 'tv' : 'movie',
         year: info.year,
@@ -97,19 +99,7 @@ export default function App() {
         poster: posterQuery.trim() || undefined
       };
 
-      try {
-        const res = await fetch('/api/items', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newItemLocal)
-        });
-        const { id } = await res.json();
-        setItems(prev => [{ ...newItemLocal, id }, ...prev]);
-      } catch (err) {
-        console.error(err);
-        setItems(prev => [{ ...newItemLocal, id: Date.now() }, ...prev]);
-      }
-
+      setItems(prev => [newItem, ...prev]);
       setNameQuery('');
       setPosterQuery('');
       setShowAdd(false);
@@ -122,26 +112,15 @@ export default function App() {
         return;
       }
 
-      const newItemFallback: any = {
+      const newItem: TitleItem = {
+        id: Date.now(),
         title: nameQuery,
         type: 'movie',
         status: 'plan',
         progress: 0,
         poster: posterQuery.trim() || undefined
       };
-      
-      try {
-        const res = await fetch('/api/items', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newItemFallback)
-        });
-        const { id } = await res.json();
-        setItems(prev => [{ ...newItemFallback, id }, ...prev]);
-      } catch(e) {
-        setItems(prev => [{ ...newItemFallback, id: Date.now() }, ...prev]);
-      }
-
+      setItems(prev => [newItem, ...prev]);
       setNameQuery('');
       setPosterQuery('');
       setShowAdd(false);
@@ -151,26 +130,12 @@ export default function App() {
     }
   };
 
-  const updateItem = async (id: number, updates: Partial<TitleItem>) => {
+  const updateItem = (id: number, updates: Partial<TitleItem>) => {
     setItems(items.map(i => i.id === id ? { ...i, ...updates } : i));
-    try {
-      await fetch(`/api/items/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      });
-    } catch (err) {
-      console.error(err);
-    }
   };
 
-  const removeItem = async (id: number) => {
+  const removeItem = (id: number) => {
     setItems(items.filter(i => i.id !== id));
-    try {
-      await fetch(`/api/items/${id}`, { method: 'DELETE' });
-    } catch (err) {
-      console.error(err);
-    }
   };
 
   // Filtering
@@ -393,7 +358,7 @@ export default function App() {
 
 // Sub-components
 
-const PosterCard: React.FC<{ item: TitleItem; index: number; onClick: () => void; }> = ({ item, index, onClick }) => {
+function PosterCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void }) {
   return (
      <div 
        onClick={onClick} 
@@ -409,7 +374,7 @@ const PosterCard: React.FC<{ item: TitleItem; index: number; onClick: () => void
   );
 }
 
-const ListCard: React.FC<{ item: TitleItem; index: number; onClick: () => void; }> = ({ item, index, onClick }) => {
+function ListCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void }) {
   const isWatching = item.status === 'watching';
   const isCompleted = item.status === 'completed';
   
@@ -451,7 +416,7 @@ const ListCard: React.FC<{ item: TitleItem; index: number; onClick: () => void; 
   )
 }
 
-const ItemDetailView: React.FC<{ item: TitleItem; onClose: () => void; onUpdate: (updates: Partial<TitleItem>) => void; onRemove: (id: number) => void; }> = ({ item, onClose, onUpdate, onRemove }) => {
+function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem; onClose: () => void; onUpdate: (updates: Partial<TitleItem>) => void; onRemove: (id: number) => void; }) {
   const [isEditingPoster, setIsEditingPoster] = useState(false);
   const [tempPoster, setTempPoster] = useState(item.poster || '');
 
