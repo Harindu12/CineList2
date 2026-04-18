@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud, LogIn } from 'lucide-react';
+import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud } from 'lucide-react';
 
-import { auth, db } from './firebase';
-import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { db } from './firebase';
 import { collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 const STORAGE_KEY = 'cinelist_v1';
@@ -25,12 +24,10 @@ interface TitleItem {
   poster?: string;
   status?: TitleStatus;
   progress?: number;
-  userId?: string;
 }
 
 export default function App() {
   const [items, setItems] = useState<TitleItem[]>([]);
-  const [user, setUser] = useState<FirebaseUser | null>(null);
   
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -43,25 +40,13 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return unsubscribe;
-  }, []);
-
-  useEffect(() => {
-    if (!user) {
-      setItems([]);
-      return;
-    }
-
-    const sub = onSnapshot(collection(db, 'users', user.uid, 'titles'), (snapshot) => {
+    const sub = onSnapshot(collection(db, 'titles'), (snapshot) => {
       const fbItems: TitleItem[] = [];
       snapshot.forEach(doc => {
         const data = doc.data();
         fbItems.push({
           ...data,
-          id: parseInt(doc.id, 10), // We still need id as a property if we use it, otherwise use doc.id
+          id: parseInt(doc.id, 10),
         } as TitleItem);
       });
       // Sort by creation time (id) descending
@@ -70,19 +55,10 @@ export default function App() {
     });
     
     return () => sub();
-  }, [user]);
-
-  const handleLogin = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-    } catch (e: any) {
-      console.error(e.message);
-    }
-  };
+  }, []);
 
   const handleAdd = async () => {
-    if (!nameQuery.trim() || !user) return;
+    if (!nameQuery.trim()) return;
 
     setIsLoading(true);
     setStatusText('Adding...');
@@ -136,14 +112,13 @@ export default function App() {
         synopsis: info.synopsis || '',
         status: 'plan',
         progress: 0,
-        userId: user.uid,
       };
       
       if (posterQuery.trim()) {
         newItem.poster = posterQuery.trim();
       }
 
-      await setDoc(doc(db, 'users', user.uid, 'titles', id.toString()), newItem);
+      await setDoc(doc(db, 'titles', id.toString()), newItem);
       
       setNameQuery('');
       setPosterQuery('');
@@ -164,13 +139,12 @@ export default function App() {
         type: 'movie',
         status: 'plan',
         progress: 0,
-        userId: user.uid,
       };
       if (posterQuery.trim()) {
          newItem.poster = posterQuery.trim();
       }
       
-      await setDoc(doc(db, 'users', user.uid, 'titles', id.toString()), newItem);
+      await setDoc(doc(db, 'titles', id.toString()), newItem);
       
       setNameQuery('');
       setPosterQuery('');
@@ -182,13 +156,11 @@ export default function App() {
   };
 
   const updateItem = async (id: number, updates: Partial<TitleItem>) => {
-    if (!user) return;
-    await updateDoc(doc(db, 'users', user.uid, 'titles', id.toString()), updates);
+    await updateDoc(doc(db, 'titles', id.toString()), updates);
   };
 
   const removeItem = async (id: number) => {
-    if (!user) return;
-    await deleteDoc(doc(db, 'users', user.uid, 'titles', id.toString()));
+    await deleteDoc(doc(db, 'titles', id.toString()));
   };
 
   // Filtering
@@ -219,7 +191,7 @@ export default function App() {
   // Import into Cloud Storage
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
+    if (!file) return;
     
     const reader = new FileReader();
     reader.onload = async (ev) => {
@@ -231,9 +203,8 @@ export default function App() {
           // Push to cloud db
           for (let item of parsed) {
             const tempId = item.id || Date.now();
-            await setDoc(doc(db, 'users', user.uid, 'titles', tempId.toString()), {
+            await setDoc(doc(db, 'titles', tempId.toString()), {
               ...item,
-              userId: user.uid, // ensure strict linkage
               id: tempId
             });
           }
@@ -253,25 +224,6 @@ export default function App() {
   const completedItems = items.filter(i => i.status === 'completed');
 
   const selectedItem = items.find(i => i.id === selectedId);
-
-  // NOT LOGGED IN STATE
-  if (!user) {
-     return (
-        <div className="relative min-h-screen bg-brand-bg w-full max-w-[430px] mx-auto flex flex-col items-center justify-center p-8 font-sans">
-           <div className="font-serif text-[42px] tracking-[-0.5px] leading-none text-brand-text mb-2">
-              Watch<em className="italic text-brand-sub ml-0.5">list</em>
-           </div>
-           <p className="text-brand-sub text-[14px] text-center mb-10">Sign in to sync your watchlist across all your devices securely in the cloud.</p>
-           
-           <button 
-              onClick={handleLogin}
-              className="bg-brand-text text-brand-bg px-8 py-3.5 rounded-full font-medium active:scale-95 transition-transform flex items-center gap-2 shadow-sm cursor-pointer"
-           >
-              <LogIn size={18} /> Continue with Google
-           </button>
-        </div>
-     );
-  }
 
   return (
     <div className="relative min-h-screen bg-brand-bg w-full max-w-[430px] mx-auto pb-24 overflow-x-hidden font-sans no-scrollbar">

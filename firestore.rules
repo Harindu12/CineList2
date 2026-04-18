@@ -2,33 +2,22 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Global Safety Net
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // -----------------------------------------------------------------------
-    // PRIMITIVES
-    // -----------------------------------------------------------------------
     function isValidId(id) { 
       return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
     }
     
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function isSignedIn() { 
-      return request.auth != null && request.auth.token.email_verified == true; 
-    }
-    
-    // -----------------------------------------------------------------------
-    // VALIDATORS
-    // -----------------------------------------------------------------------
+
     function isValidTitle(data) {
-      return data.keys().hasAll(['title', 'type', 'status', 'userId']) &&
+      return data.keys().hasAll(['title', 'type', 'status']) &&
              data.title is string && data.title.size() > 0 && data.title.size() <= 300 &&
              data.type is string && (data.type == 'movie' || data.type == 'tv') &&
              data.status is string && (data.status == 'plan' || data.status == 'watching' || data.status == 'completed') &&
-             data.userId is string && data.userId == request.auth.uid &&
              // Optionals
              (!('id' in data) || data.id is number) &&
              (!('year' in data) || (data.year is string && data.year.size() <= 20)) &&
@@ -41,26 +30,11 @@ service cloud.firestore {
              (!('cast' in data) || (data.cast is list && data.cast.size() <= 10 && (data.cast.size() == 0 || data.cast[0] is string)));
     }
 
-    // -----------------------------------------------------------------------
-    // PATHS
-    // -----------------------------------------------------------------------
-    match /users/{userId}/titles/{titleId} {
-      allow read: if isSignedIn() && request.auth.uid == userId;
-      
-      allow create: if isSignedIn() 
-        && request.auth.uid == userId
-        && isValidId(titleId)
-        && isValidTitle(incoming())
-        && incoming().keys().size() <= 15;
-        
-      allow update: if isSignedIn() 
-        && request.auth.uid == userId
-        && isValidId(titleId)
-        && isValidTitle(incoming())
-        && incoming().userId == existing().userId
-        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'progress', 'title', 'type', 'year', 'director', 'genre', 'rating', 'synopsis', 'poster', 'cast']);
-        
-      allow delete: if isSignedIn() && request.auth.uid == userId;
+    match /titles/{titleId} {
+      allow read: if true;
+      allow create: if isValidId(titleId) && isValidTitle(incoming()) && incoming().keys().size() <= 15;
+      allow update: if isValidId(titleId) && isValidTitle(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'progress', 'title', 'type', 'year', 'director', 'genre', 'rating', 'synopsis', 'poster', 'cast']);
+      allow delete: if true;
     }
   }
 }
