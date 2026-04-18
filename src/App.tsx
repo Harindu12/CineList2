@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus } from 'lucide-react';
+import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download } from 'lucide-react';
 
 const STORAGE_KEY = 'cinelist_v1';
 
@@ -149,6 +149,19 @@ export default function App() {
      return filtered;
   }, [items, filter]);
 
+  const handleExport = () => {
+    const dataStr = localStorage.getItem(STORAGE_KEY) || '[]';
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `watchlist_export_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const recentlyAdded = [...items].sort((a, b) => b.id - a.id).slice(0, 5);
   const watchingItems = items.filter(i => i.status === 'watching');
   const planItems = items.filter(i => i.status === 'plan' || !i.status);
@@ -164,6 +177,13 @@ export default function App() {
         <div className="font-serif text-[28px] tracking-[-0.5px] leading-none text-brand-text">
            Watch<em className="italic text-brand-sub ml-0.5">list</em>
         </div>
+        <button 
+           onClick={handleExport}
+           className="w-9 h-9 rounded-full border border-brand-border bg-brand-white flex items-center justify-center cursor-pointer active:scale-95 active:opacity-70 transition-all shrink-0 mt-[2px] text-brand-sub hover:text-brand-text hover:border-[#c5c2bb]"
+           title="Export Watchlist Data"
+        >
+           <Download size={14} strokeWidth={2.2} />
+        </button>
       </div>
 
       {/* SUMMARY */}
