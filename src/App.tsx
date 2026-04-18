@@ -202,7 +202,7 @@ export default function App() {
             <div className="pt-6 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">{filter}</div>
             <div className="px-6 flex flex-col gap-2">
               {filteredItems.map((item, i) => (
-                 <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
+                 <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} onStatusCycle={(status) => updateItem(item.id, { status })} />
               ))}
               {filteredItems.length === 0 && <div className="text-center py-10 text-brand-sub text-sm">No titles found.</div>}
             </div>
@@ -210,23 +210,11 @@ export default function App() {
       ) : (
          // Main All View
          <div className="animate-in fade-in duration-300 pb-10">
-            {recentlyAdded.length > 0 && (
-              <>
-                <div className="pt-6 px-6 pb-2.5 text-[11px] font-medium tracking-[1px] uppercase text-brand-sub">Recently added</div>
-                <div className="flex gap-3 px-6 overflow-x-auto no-scrollbar">
-                  {recentlyAdded.map((item, i) => (
-                    <PosterCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
-                  ))}
-                </div>
-                <div className="h-px bg-brand-border mx-6 mt-5" />
-              </>
-            )}
-
             {watchingItems.length > 0 && (
                <>
-                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Watching now</div>
+                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Watching</div>
                  <div className="px-6 flex flex-col gap-2">
-                   {watchingItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
+                   {watchingItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} onStatusCycle={(status) => updateItem(item.id, { status })} />)}
                  </div>
                  <div className="h-4" />
                </>
@@ -236,7 +224,7 @@ export default function App() {
                <>
                  <div className="pt-5 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Plan to watch</div>
                  <div className="px-6 flex flex-col gap-2">
-                   {planItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
+                   {planItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} onStatusCycle={(status) => updateItem(item.id, { status })} />)}
                  </div>
                  <div className="h-4" />
                </>
@@ -246,7 +234,7 @@ export default function App() {
                <>
                  <div className="pt-5 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Completed</div>
                  <div className="px-6 flex flex-col gap-2">
-                   {completedItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
+                   {completedItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} onStatusCycle={(status) => updateItem(item.id, { status })} />)}
                  </div>
                  <div className="h-4" />
                </>
@@ -374,10 +362,17 @@ const PosterCard: React.FC<{ item: TitleItem; index: number; onClick: () => void
   );
 }
 
-const ListCard: React.FC<{ item: TitleItem; index: number; onClick: () => void; }> = ({ item, index, onClick }) => {
+const ListCard: React.FC<{ item: TitleItem; index: number; onClick: () => void; onStatusCycle: (newStatus: TitleStatus) => void; }> = ({ item, index, onClick, onStatusCycle }) => {
   const isWatching = item.status === 'watching';
   const isCompleted = item.status === 'completed';
   
+  const handleCycleStatus = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (item.status === 'plan' || !item.status) onStatusCycle('watching');
+    else if (item.status === 'watching') onStatusCycle('completed');
+    else onStatusCycle('plan');
+  };
+
   return (
     <div 
        onClick={onClick} 
@@ -405,11 +400,11 @@ const ListCard: React.FC<{ item: TitleItem; index: number; onClick: () => void; 
 
        <div className="flex shrink-0">
          {isWatching ? (
-            <button className="text-[11px] font-semibold tracking-[0.01em] px-3 py-[5px] rounded-[20px] bg-[#e6f4ea] text-[#2e7d32] border-none cursor-pointer">Watching</button>
+            <button onClick={handleCycleStatus} className="text-[11px] font-semibold tracking-[0.01em] px-3 py-[5px] rounded-[20px] bg-[#e6f4ea] text-[#2e7d32] hover:bg-[#cce6d2] transition-colors border-none cursor-pointer">Watching</button>
          ) : isCompleted ? (
-            <button className="text-[11px] font-semibold tracking-[0.01em] px-3 py-[5px] rounded-[20px] bg-[#ede7f6] text-[#6a1bdb] border-none cursor-pointer">Done</button>
+            <button onClick={handleCycleStatus} className="text-[11px] font-semibold tracking-[0.01em] px-3 py-[5px] rounded-[20px] bg-[#ede7f6] text-[#6a1bdb] hover:bg-[#e2d5f8] transition-colors border-none cursor-pointer">Done</button>
          ) : (
-            <button className="text-[11px] font-semibold tracking-[0.01em] px-3 py-[5px] rounded-[20px] bg-[#fef3e2] text-[#d4840a] hover:bg-[#fde6b8] transition-colors border-none cursor-pointer">Plan</button>
+            <button onClick={handleCycleStatus} className="text-[11px] font-semibold tracking-[0.01em] px-3 py-[5px] rounded-[20px] bg-[#fef3e2] text-[#d4840a] hover:bg-[#fde6b8] transition-colors border-none cursor-pointer">Plan</button>
          )}
        </div>
     </div>
