@@ -199,8 +199,8 @@ export default function App() {
       {filter !== 'All' ? (
          // Filtered View
          <div className="animate-in fade-in duration-300 pb-10">
-            <div className="pt-6 px-6 pb-2.5 text-[11px] font-medium tracking-[1px] uppercase text-brand-sub">{filter}</div>
-            <div className="px-6 flex flex-col gap-px">
+            <div className="pt-6 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">{filter}</div>
+            <div className="px-6 flex flex-col gap-2">
               {filteredItems.map((item, i) => (
                  <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
               ))}
@@ -224,31 +224,31 @@ export default function App() {
 
             {watchingItems.length > 0 && (
                <>
-                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-medium tracking-[1px] uppercase text-brand-sub">Watching now</div>
-                 <div className="px-6 flex flex-col gap-px">
+                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Watching now</div>
+                 <div className="px-6 flex flex-col gap-2">
                    {watchingItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
                  </div>
-                 <div className="h-px bg-brand-border mx-6 mt-5" />
+                 <div className="h-4" />
                </>
             )}
 
             {planItems.length > 0 && (
                <>
-                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-medium tracking-[1px] uppercase text-brand-sub">Plan to watch</div>
-                 <div className="px-6 flex flex-col gap-px">
+                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Plan to watch</div>
+                 <div className="px-6 flex flex-col gap-2">
                    {planItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
                  </div>
-                 <div className="h-px bg-brand-border mx-6 mt-5" />
+                 <div className="h-4" />
                </>
             )}
 
             {completedItems.length > 0 && (
                <>
-                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-medium tracking-[1px] uppercase text-brand-sub">Completed</div>
-                 <div className="px-6 flex flex-col gap-px">
+                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Completed</div>
+                 <div className="px-6 flex flex-col gap-2">
                    {completedItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
                  </div>
-                 <div className="h-px bg-brand-border mx-6 mt-[20px]" />
+                 <div className="h-4" />
                </>
             )}
 
@@ -381,38 +381,35 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
   return (
     <div 
        onClick={onClick} 
-       className="list-item bg-brand-white flex items-center gap-[14px] p-3.5 cursor-pointer active:bg-brand-surface transition-colors animate-[fadeUp_0.3s_ease_both]"
+       className="bg-white rounded-[14px] flex items-center gap-3 p-[10px_14px_10px_10px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)] hover:-translate-y-[1px] cursor-pointer transition-all animate-[fadeUp_0.3s_ease_both]"
        style={{ animationDelay: `${index * 0.04 + 0.04}s` }}
     >
-       <div className="w-[42px] h-[58px] rounded-[7px] bg-brand-surface border border-brand-border shrink-0 flex items-center justify-center text-xl overflow-hidden shadow-sm">
+       <div className="w-[48px] h-[64px] rounded-[8px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-xl overflow-hidden">
           {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (item.type === 'movie' ? '🍿' : '📺')}
        </div>
        
-       <div className="flex-1 min-w-0 pr-1 flex flex-col justify-center">
-         <div className="text-[14px] font-medium mb-[3px] truncate text-brand-text">{item.title}</div>
-         <div className="text-[12px] text-brand-sub flex items-center gap-[6px] truncate">
-            {item.type === 'movie' ? 'Movie' : 'Series'}
-            <div className="w-[3px] h-[3px] rounded-full bg-brand-border shrink-0" />
-            <span className="truncate">{item.year || 'Unknown'} {item.genre ? `· ${item.genre.split(',')[0].trim()}` : ''}</span>
+       <div className="flex-1 min-w-0 flex flex-col justify-center">
+         <div className="text-[14px] font-semibold mb-[3px] truncate text-[#1a1714] tracking-[-0.01em]">{item.title}</div>
+         <div className="text-[11px] text-[#a09890] flex items-center gap-[5px] truncate mt-0.5">
+            <span className="text-[10px] font-medium text-[#7a7068] bg-[#f0ede8] rounded-[4px] px-[6px] py-[1px]">{item.type === 'movie' ? 'Movie' : 'Series'}</span>
+            <div className="w-[3px] h-[3px] rounded-full bg-[#c8c0b8] shrink-0" />
+            <span className="truncate">{item.year || 'Unknown'}</span>
+            {item.genre && (
+              <>
+                 <div className="w-[3px] h-[3px] rounded-full bg-[#c8c0b8] shrink-0" />
+                 <span className="truncate">{item.genre.split(',')[0].trim()}</span>
+              </>
+            )}
          </div>
        </div>
 
-       <div className="flex flex-col items-end gap-[6px] shrink-0 pl-1">
+       <div className="flex shrink-0">
          {isWatching ? (
-            <span className="text-[10px] font-medium tracking-[0.3px] px-2 py-[3px] rounded-full bg-[#e8f5e9] text-[#2e7d32]">Watching</span>
+            <button className="text-[11px] font-semibold tracking-[0.01em] px-3 py-[5px] rounded-[20px] bg-[#e6f4ea] text-[#2e7d32] border-none cursor-pointer">Watching</button>
          ) : isCompleted ? (
-            <span className="text-[10px] font-medium tracking-[0.3px] px-2 py-[3px] rounded-full bg-brand-surface text-brand-sub">Done</span>
+            <button className="text-[11px] font-semibold tracking-[0.01em] px-3 py-[5px] rounded-[20px] bg-[#ede7f6] text-[#6a1bdb] border-none cursor-pointer">Done</button>
          ) : (
-            <span className="text-[10px] font-medium tracking-[0.3px] px-2 py-[3px] rounded-full bg-[#fff8e1] text-[#f57f17]">Plan</span>
-         )}
-
-         {isWatching && (
-            <div className="w-11">
-               <div className="h-[2px] bg-brand-border rounded-[2px] overflow-hidden">
-                 <div className="h-full bg-brand-sub rounded-[2px]" style={{ width: `${item.progress || 0}%` }}></div>
-               </div>
-               <div className="text-[10px] text-brand-sub text-right mt-0.5">{item.progress || 0}%</div>
-            </div>
+            <button className="text-[11px] font-semibold tracking-[0.01em] px-3 py-[5px] rounded-[20px] bg-[#fef3e2] text-[#d4840a] hover:bg-[#fde6b8] transition-colors border-none cursor-pointer">Plan</button>
          )}
        </div>
     </div>
