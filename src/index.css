@@ -1,20 +1,20 @@
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Sora", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-serif: "Instrument Serif", ui-serif, serif;
   
   --color-brand-bg: #f0ede8;
   --color-brand-surface: #eceae4;
   --color-brand-border: #e0ddd6;
-  --color-brand-text: #1a1714;
-  --color-brand-sub: #a09890;
-  --color-brand-accent: #1a1714;
+  --color-brand-text: #1a1917;
+  --color-brand-sub: #9b9890;
+  --color-brand-accent: #1a1917;
   --color-brand-white: #ffffff;
-  --color-brand-nav-bg: rgba(26,23,20,0.96);
+  --color-brand-nav-bg: rgba(26,25,23,0.96);
   --color-brand-nav-text: #f0ede8;
-  --color-brand-nav-muted: #7a7068;
+  --color-brand-nav-muted: #9b9890;
 }
 
 body {
@@ -50,6 +50,14 @@ body {
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+.hidden-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hidden-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .hide-scroll-fade {

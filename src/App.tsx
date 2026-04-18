@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud } from 'lucide-react';
+import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud, Bookmark, BarChart2 } from 'lucide-react';
 
 import { db } from './firebase';
 import { collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
@@ -37,6 +37,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [filter, setFilter] = useState('All');
+  const [activeView, setActiveView] = useState<'home' | 'stats'>('home');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -230,84 +231,80 @@ export default function App() {
     <div className="relative min-h-screen bg-brand-bg w-full max-w-[430px] mx-auto pb-24 overflow-clip font-sans no-scrollbar">
       <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
 
-      {/* FLOATING HEADER ISLAND */}
-      <div className="pt-4 px-4 sticky top-0 z-40">
-        <div className="bg-[#f0ede8]/85 backdrop-blur-[24px] border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.06)] rounded-[32px] pb-3 pt-4 transition-all">
-          
-          {/* TOP ROW: TITLE & SETTINGS/ACTIONS */}
-          <div className="px-5 flex items-center justify-between mb-4">
-            <div className="font-serif text-[32px] tracking-[-0.03em] leading-none text-[#1a1714]">
-               Watch<em className="italic text-[#a09890] ml-[1px]">list</em>
-            </div>
-            <div className="flex items-center gap-1.5 bg-[#e4e1db]/80 p-1 rounded-full shadow-inner border border-white/20">
-              <button 
-                 onClick={() => fileInputRef.current?.click()}
-                 className="w-[30px] h-[30px] rounded-full bg-transparent flex items-center justify-center cursor-pointer hover:bg-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] active:scale-95 transition-all text-[#7a7068] hover:text-[#1a1714]"
-                 title="Import Watchlist Data"
-              >
-                 <UploadCloud size={15} strokeWidth={2.2} />
-              </button>
-              <button 
-                 onClick={handleExport}
-                 className="w-[30px] h-[30px] rounded-full bg-transparent flex items-center justify-center cursor-pointer hover:bg-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] active:scale-95 transition-all text-[#7a7068] hover:text-[#1a1714]"
-                 title="Export Cloud Data"
-              >
-                 <Download size={15} strokeWidth={2.2} />
-              </button>
-            </div>
+      {/* HEADER - FLUSH WITH BACKGROUND */}
+      <div className="sticky top-0 z-40 bg-[#f0ede8]/95 backdrop-blur-xl pt-[52px] transition-all pb-0">
+        
+        {/* TOP ROW: TITLE & SETTINGS/ACTIONS */}
+        <div className="px-[24px] flex items-center justify-between mb-4">
+          <div className="font-serif text-[32px] tracking-[-0.03em] leading-none text-[#1a1917] font-bold">
+             Watch<em className="italic ml-[1px]">list</em>
           </div>
-
-          {/* SEARCH BAR (INTEGRATED & SLEEK) */}
-          <div className="px-4 mb-4">
-            <div 
-              className="bg-[#e9e6e0] rounded-[20px] flex items-center gap-2 pl-4 pr-1.5 py-[6px] cursor-text transition-all hover:bg-[#e4e1db] active:scale-[0.98] group shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)] border border-white/40" 
-              onClick={() => setShowAdd(true)}
+          <div className="flex items-center gap-1.5 p-1">
+            <button 
+               onClick={() => fileInputRef.current?.click()}
+               className="w-8 h-8 rounded-full bg-transparent flex items-center justify-center cursor-pointer hover:bg-black/5 active:scale-95 transition-all text-[#9b9890]"
+               title="Import Watchlist Data"
             >
-              <SearchIcon size={17} className="text-[#8a8278] shrink-0" strokeWidth={2} />
-              <span className="text-[#8a8278] text-[15px] font-medium w-full text-left tracking-[-0.01em]">Find or add a title…</span>
-              <div className="w-[34px] h-[34px] rounded-[14px] bg-[#1a1714] flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)] ml-auto group-hover:scale-105 group-active:scale-95 transition-transform">
-                 <Plus className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
-              </div>
-            </div>
+               <UploadCloud size={18} strokeWidth={2} />
+            </button>
+            <button 
+               onClick={handleExport}
+               className="w-8 h-8 rounded-full bg-transparent flex items-center justify-center cursor-pointer hover:bg-black/5 active:scale-95 transition-all text-[#9b9890]"
+               title="Export Cloud Data"
+            >
+               <Download size={18} strokeWidth={2} />
+            </button>
           </div>
+        </div>
 
-          {/* PILL TABS */}
-          <div className="flex items-center justify-between px-4">
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar hide-scroll-fade">
-              {['All', 'Watching', 'Plan to Watch', 'Completed'].map((f) => (
-                <div 
-                  key={f} 
-                  onClick={() => setFilter(f)} 
-                  className={`text-[13px] font-semibold px-4 py-[7px] rounded-full cursor-pointer whitespace-nowrap shrink-0 transition-all ${filter === f ? 'bg-[#1a1714] text-white shadow-md hover:scale-105' : 'bg-[#e4e1db]/50 text-[#7a7068] hover:bg-[#e4e1db]'}`}
-                >
-                  {f}
-                </div>
-              ))}
-            </div>
+        {/* SEARCH BAR */}
+        <div className="px-[24px] mb-4">
+          <div 
+            className="bg-transparent rounded-[24px] flex items-center gap-2 px-4 py-3 cursor-text transition-all active:scale-[0.98] border border-[#e0ddd6] hover:bg-black/5" 
+            onClick={() => setShowAdd(true)}
+          >
+            <SearchIcon size={16} className="text-[#9b9890] shrink-0" strokeWidth={2.5} />
+            <span className="text-[#9b9890] text-[15px] font-medium w-full text-left tracking-[-0.01em]">Search your list…</span>
           </div>
+        </div>
+
+        {/* CAPSULE TABS */}
+        <div className="flex items-center px-[24px] pb-4 hidden-scrollbar overflow-x-auto relative z-10 w-full">
+           <div className="flex items-center gap-2 w-full pr-4">
+            {['All', 'Watching', 'Plan to Watch', 'Completed'].map((f) => (
+              <div 
+                key={f} 
+                onClick={() => setFilter(f)} 
+                className={`text-[13px] font-medium px-4 py-2 cursor-pointer whitespace-nowrap shrink-0 transition-all rounded-full ${filter === f ? 'bg-[#1a1917] text-white font-bold' : 'text-[#9b9890] bg-transparent hover:bg-black/5'}`}
+              >
+                {f}
+              </div>
+            ))}
+           </div>
         </div>
       </div>
 
-      {/* LIST CONTENT */}
+      <div className="relative z-10 pt-2">
+      {activeView === 'home' ? (
+      <>
       {isInitializing ? (
          <div className="animate-in fade-in duration-300 pb-10">
             {filter === 'All' ? (
               <>
-                <div className="pt-6 px-6 pb-2.5 flex items-center"><div className="h-2 w-24 bg-brand-border/60 rounded-full animate-pulse" /></div>
-                <div className="flex gap-3 px-6 overflow-x-hidden py-2 -my-2 flex-nowrap">
+                <div className="px-[24px] pb-4 flex items-center"><div className="h-[10px] w-24 bg-brand-border/60 rounded-full animate-pulse" /></div>
+                <div className="flex gap-3 px-[24px] overflow-x-hidden pb-4 flex-nowrap -ml-2 pl-[32px]">
                   {[1, 2, 3, 4].map(i => <PosterCardSkeleton key={i} />)}
                 </div>
-                <div className="h-px bg-brand-border mx-6 mt-5" />
                 
-                <div className="pt-5 px-6 pb-2.5 flex items-center"><div className="h-2 w-20 bg-brand-border/60 rounded-full animate-pulse" /></div>
-                <div className="px-6 flex flex-col gap-2">
+                <div className="pt-6 px-[24px] pb-2 flex items-center"><div className="h-[10px] w-20 bg-brand-border/60 rounded-full animate-pulse" /></div>
+                <div className="px-[24px] flex flex-col gap-[10px]">
                   {[1, 2, 3].map(i => <ListCardSkeleton key={i} />)}
                 </div>
               </>
             ) : (
               <>
-                <div className="pt-6 px-6 pb-2.5 flex items-center"><div className="h-2 w-24 bg-brand-border/60 rounded-full animate-pulse" /></div>
-                <div className="px-6 flex flex-col gap-2">
+                <div className="pt-2 px-[24px] pb-2 flex items-center"><div className="h-[10px] w-24 bg-brand-border/60 rounded-full animate-pulse" /></div>
+                <div className="px-[24px] flex flex-col gap-[10px]">
                   {[1, 2, 3, 4, 5].map(i => <ListCardSkeleton key={i} />)}
                 </div>
               </>
@@ -316,71 +313,107 @@ export default function App() {
       ) : filter !== 'All' ? (
          // Filtered View
          <div className="animate-in fade-in duration-300 pb-10">
-            <div className="pt-6 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">{filter}</div>
-            <div className="px-6 flex flex-col gap-2">
+            <div className="px-[24px] pb-[12px] pt-[24px] text-[11px] font-bold tracking-[0.08em] uppercase text-[#9b9890]">{filter}</div>
+            <div className="px-[24px] flex flex-col gap-[10px]">
               {filteredItems.map((item, i) => (
                  <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
               ))}
-              {filteredItems.length === 0 && <div className="text-center py-10 text-brand-sub text-sm">No titles found.</div>}
+              {filteredItems.length === 0 && <div className="text-center py-10 text-[#9b9890] text-sm font-medium">No titles found.</div>}
             </div>
          </div>
       ) : (
          // Main All View
-         <div className="animate-in fade-in duration-300 pb-10">
+         <div className="animate-in fade-in duration-300 pb-10 mt-2">
             {recentlyAdded.length > 0 && (
-              <>
-                <div className="pt-6 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Recently added</div>
-                <div className="flex gap-3 px-6 overflow-x-auto no-scrollbar py-2 -my-2 snap-x">
+              <div className="mb-[24px]">
+                <div className="flex gap-3 px-[24px] overflow-x-auto no-scrollbar pb-2 snap-x -ml-2 pl-[32px]">
                   {recentlyAdded.map((item, i) => (
                     <PosterCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
                   ))}
-                  <div className="w-3 shrink-0" />
+                  <div className="w-[12px] shrink-0" />
                 </div>
-                <div className="h-px bg-brand-border mx-6 mt-5" />
-              </>
+                <div className="h-px bg-[#e0ddd6] mx-[24px] mt-6" />
+              </div>
             )}
 
             {watchingItems.length > 0 && (
-               <>
-                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Watching now</div>
-                 <div className="px-6 flex flex-col gap-2">
+               <div className="mb-[24px]">
+                 <div className="px-[24px] pb-[12px] text-[11px] font-bold tracking-[0.08em] uppercase text-[#9b9890]">Watching now</div>
+                 <div className="px-[24px] flex flex-col gap-[10px]">
                    {watchingItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
                  </div>
-                 <div className="h-4" />
-               </>
+               </div>
             )}
 
             {planItems.length > 0 && (
-               <>
-                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Plan to watch</div>
-                 <div className="px-6 flex flex-col gap-2">
+               <div className="mb-[24px]">
+                 <div className="px-[24px] pb-[12px] text-[11px] font-bold tracking-[0.08em] uppercase text-[#9b9890]">Plan to watch</div>
+                 <div className="px-[24px] flex flex-col gap-[10px]">
                    {planItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
                  </div>
-                 <div className="h-4" />
-               </>
+               </div>
             )}
 
             {completedItems.length > 0 && (
-               <>
-                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Completed</div>
-                 <div className="px-6 flex flex-col gap-2">
+               <div className="mb-[24px]">
+                 <div className="px-[24px] pb-[12px] text-[11px] font-bold tracking-[0.08em] uppercase text-[#9b9890]">Completed</div>
+                 <div className="px-[24px] flex flex-col gap-[10px]">
                    {completedItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
                  </div>
-                 <div className="h-4" />
-               </>
+               </div>
             )}
 
             {items.length === 0 && (
                <div className="px-8 py-16 flex flex-col items-center text-center animate-in fade-in duration-500">
-                  <div className="w-[72px] h-[72px] bg-white rounded-full border border-[#e0ddd6] flex items-center justify-center mb-5 text-[#a09890] shadow-sm">
+                  <div className="w-[72px] h-[72px] bg-white rounded-full border border-[#e0ddd6] flex items-center justify-center mb-5 text-[#9b9890] shadow-sm">
                     <List size={28} strokeWidth={1.5} />
                   </div>
-                  <h3 className="text-[22px] font-serif text-[#1a1714] mb-2 tracking-[-0.02em]">Your list is empty</h3>
-                  <p className="text-[#a09890] text-[14px] max-w-[240px] leading-[1.5] font-medium">Tap the plus icon below or use the search bar to add titles.</p>
+                  <h3 className="text-[22px] font-serif text-[#1a1917] mb-2 tracking-[-0.02em]">Your list is empty</h3>
+                  <p className="text-[#9b9890] text-[14px] max-w-[240px] leading-[1.5] font-medium">Tap the plus icon below or use the search bar to add titles.</p>
                </div>
             )}
          </div>
       )}
+      </>
+      ) : (
+        <div className="animate-in fade-in duration-300 pb-10 px-[24px]">
+            <h2 className="font-serif text-[32px] tracking-[-0.03em] leading-none text-[#1a1917] mb-6 mt-4">Statistics</h2>
+            
+            <div className="grid grid-cols-2 gap-[10px]">
+               <div className="bg-white rounded-[16px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-brand-border/40">
+                  <div className="text-[32px] font-semibold text-[#1a1917] mb-0.5 leading-none">{items.length}</div>
+                  <div className="text-[12px] text-[#9b9890] font-medium">Total Titles</div>
+               </div>
+               <div className="bg-white rounded-[16px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-brand-border/40 flex flex-col justify-center">
+                  <div className="flex w-full h-[6px] rounded-full overflow-hidden mb-2 bg-[#f0ede8]">
+                    <div className="h-full bg-[#1a1917]" style={{ width: `${items.length ? (items.filter(i=>i.type==='movie').length / items.length) * 100 : 0}%` }} />
+                  </div>
+                  <div className="flex justify-between text-[12px] font-medium">
+                     <span className="text-[#1a1917]">{items.filter(i=>i.type==='movie').length} <span className="text-[#9b9890]">Movies</span></span>
+                     <span className="text-[#1a1917]">{items.filter(i=>i.type==='tv').length} <span className="text-[#9b9890]">Series</span></span>
+                  </div>
+               </div>
+               
+               <div className="bg-white rounded-[16px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-brand-border/40 col-span-2">
+                  <div className="flex justify-between items-end mb-4 border-b border-[#f0ede8] pb-4">
+                     <div>
+                        <div className="text-[24px] font-semibold text-[#1a1917] leading-none mb-1">{items.filter(i=>i.status==='watching').length}</div>
+                        <div className="text-[12px] text-[#2e7d32] font-semibold bg-[#e6f4ea] px-2 py-0.5 rounded uppercase tracking-[0.04em]">Watching</div>
+                     </div>
+                     <div>
+                        <div className="text-[24px] font-semibold text-[#1a1917] leading-none mb-1 text-center">{items.filter(i=>i.status==='plan' || !i.status).length}</div>
+                        <div className="text-[12px] text-[#d4840a] font-semibold bg-[#fef3e2] px-2 py-0.5 rounded uppercase tracking-[0.04em]">Plan</div>
+                     </div>
+                     <div className="text-right">
+                        <div className="text-[24px] font-semibold text-[#1a1917] leading-none mb-1">{items.filter(i=>i.status==='completed').length}</div>
+                        <div className="text-[12px] text-[#6a1bdb] font-semibold bg-[#ede7f6] px-2 py-0.5 rounded uppercase tracking-[0.04em]">Completed</div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+        </div>
+      )}
+      </div>
 
       {/* ITEM DETAIL VIEW */}
       <AnimatePresence>
@@ -435,7 +468,7 @@ export default function App() {
                      <button 
                         disabled={!nameQuery || isLoading}
                         onClick={handleAdd}
-                        className="w-full mt-2 bg-[#1a1714] text-white font-semibold py-[14px] rounded-[14px] shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:opacity-90 disabled:opacity-50 text-[14px] flex items-center justify-center cursor-pointer transition-opacity"
+                        className="w-full mt-2 bg-[#1a1917] text-white font-semibold py-[14px] rounded-[14px] shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:opacity-90 disabled:opacity-50 text-[14px] flex items-center justify-center cursor-pointer transition-opacity"
                      >
                         {isLoading ? 'Adding...' : 'Add to watchlist'}
                      </button>
@@ -445,6 +478,22 @@ export default function App() {
           </>
         )}
       </AnimatePresence>
+
+      {/* FLOATING BOTTOM BAR */}
+      <div className="fixed bottom-5 left-6 right-6 bg-[#1a1917]/80 backdrop-blur-xl rounded-full px-5 py-3 flex items-center justify-between z-[50] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-white/10 w-[calc(100%-48px)] max-w-[382px] mx-auto">
+        <button onClick={() => setActiveView('home')} className={`flex flex-col items-center gap-1 ${activeView === 'home' ? 'text-white' : 'text-[#9b9890] hover:text-white'} transition-colors cursor-pointer w-16`}>
+           <Home size={22} strokeWidth={2.2} />
+           <span className="text-[10px] font-bold tracking-wide">Home</span>
+        </button>
+        <button onClick={() => setShowAdd(true)} className="w-[44px] h-[44px] bg-white rounded-[14px] flex items-center justify-center text-[#1a1917] hover:scale-105 active:scale-95 transition-transform shadow-md cursor-pointer">
+           <Plus size={24} strokeWidth={3} />
+        </button>
+        <button onClick={() => setActiveView('stats')} className={`flex flex-col items-center gap-1 ${activeView === 'stats' ? 'text-white' : 'text-[#9b9890] hover:text-white'} transition-colors cursor-pointer w-16`}>
+           <BarChart2 size={22} strokeWidth={2.2} />
+           <span className="text-[10px] font-bold tracking-wide">Stats</span>
+        </button>
+      </div>
+
     </div>
   );
 }
@@ -458,66 +507,60 @@ function PosterCard({ item, index, onClick }: { item: TitleItem, index: number, 
        className="shrink-0 w-[110px] cursor-pointer active:opacity-70 hover:-translate-y-1 transition-all animate-list-item"
        style={{ animationDelay: `${index * 0.05 + 0.05}s` }}
      >
-        <div className="w-[110px] h-[155px] rounded-[10px] bg-[#e0dbd4] border border-brand-border/40 flex items-center justify-center text-[36px] mb-2 overflow-hidden shadow-sm">
+        <div className="w-[110px] h-[165px] rounded-[10px] bg-[#e0dbd4] border border-[#e0ddd6] flex items-center justify-center text-[36px] mb-2 overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
           {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (item.type === 'movie' ? '🎬' : '📺')}
         </div>
-        <div className="text-[12px] font-semibold text-brand-text break-words line-clamp-1 whitespace-nowrap overflow-hidden text-ellipsis mb-0.5">{item.title}</div>
-        <div className="text-[11px] text-[#a09890]">{item.year || 'Unknown'} · {item.type === 'movie' ? 'Movie' : 'Series'}</div>
+        <div className="text-[13px] font-semibold text-[#1a1917] break-words line-clamp-1 whitespace-nowrap overflow-hidden text-ellipsis mb-0.5 tracking-tight">{item.title}</div>
+        <div className="text-[11px] text-[#9b9890] capitalize">{item.year || 'Unknown'} · {item.type}</div>
      </div>
   );
 }
 
 function ListCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void }) {
-  const isWatching = item.status === 'watching';
-  const isCompleted = item.status === 'completed';
-  
   return (
     <div 
        onClick={onClick} 
-       className="bg-white rounded-[16px] flex items-center gap-[14px] p-[12px_16px_12px_12px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)] hover:-translate-y-[1px] cursor-pointer transition-all animate-list-item"
-       style={{ animationDelay: `${index * 0.04 + 0.04}s` }}
+       className="bg-white rounded-[16px] flex items-center gap-[12px] p-[12px_16px_12px_12px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] cursor-pointer transition-all animate-list-item group"
+       style={{ animationDelay: `${index * 0.03 + 0.02}s` }}
     >
-       <div className="w-[60px] h-[84px] rounded-[10px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-2xl overflow-hidden shadow-sm border border-brand-border/40">
+       <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-xl overflow-hidden border border-[#e0ddd6] group-hover:-translate-y-0.5 transition-transform">
           {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (item.type === 'movie' ? '🍿' : '📺')}
        </div>
        
        <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
-         <div className="text-[15px] leading-[1.3] font-semibold mb-1.5 text-[#1a1714] tracking-tight line-clamp-2 pr-2">{item.title}</div>
+         <div className="text-[15px] leading-[1.25] font-semibold mb-1.5 text-[#1a1917] tracking-[-0.01em] line-clamp-2 pr-2">{item.title}</div>
          
          <div className="flex flex-col gap-1">
-            <div className="text-[12px] text-[#7a7068] font-medium flex items-center gap-1.5 truncate">
+            <div className="text-[12px] text-[#9b9890] font-medium flex items-center gap-1.5 truncate">
                <span>{item.year || 'Unknown'}</span>
                <div className="w-[3px] h-[3px] rounded-full bg-[#d0cac3] shrink-0" />
-               <span className="text-[#a09890] capitalize">{item.type}</span>
+               <span className="capitalize">{item.type}</span>
             </div>
 
             {item.genre && (
-              <div className="text-[11.5px] text-[#a09890] truncate flex items-center gap-1.5">
+              <div className="text-[12px] text-[#9b9890] truncate flex items-center gap-1.5">
                  <span className="truncate">{item.genre.split(',')[0].trim()}</span>
                  {item.rating && (
                    <>
                      <div className="w-[3px] h-[3px] rounded-full bg-[#d0cac3] shrink-0" />
-                     <span className="flex items-center gap-0.5 shrink-0"><Star size={10} className="fill-[#f57f17] text-[#f57f17]" /> {item.rating}</span>
+                     <span className="flex items-center gap-0.5 shrink-0"><Star size={10} className="fill-[#e8a020] text-[#e8a020]" /> {item.rating}</span>
                    </>
                  )}
               </div>
             )}
             {!item.genre && item.rating && (
-              <div className="text-[11.5px] text-[#a09890] truncate flex items-center gap-1.5">
-                 <span className="flex items-center gap-0.5 shrink-0"><Star size={10} className="fill-[#f57f17] text-[#f57f17]" /> {item.rating}</span>
+              <div className="text-[12px] text-[#9b9890] truncate flex items-center gap-1.5">
+                 <span className="flex items-center gap-0.5 shrink-0"><Star size={10} className="fill-[#e8a020] text-[#e8a020]" /> {item.rating}</span>
               </div>
             )}
          </div>
        </div>
 
-       <div className="flex shrink-0 ml-1">
-         {isWatching ? (
-            <button className="text-[11px] font-bold tracking-[0.02em] px-3.5 py-[6px] rounded-[20px] bg-[#e6f4ea] text-[#2e7d32] border-none cursor-pointer uppercase">Watching</button>
-         ) : isCompleted ? (
-            <button className="text-[11px] font-bold tracking-[0.02em] px-3.5 py-[6px] rounded-[20px] bg-[#ede7f6] text-[#6a1bdb] border-none cursor-pointer uppercase">Done</button>
-         ) : (
-            <button className="text-[11px] font-bold tracking-[0.02em] px-3.5 py-[6px] rounded-[20px] bg-[#fef3e2] text-[#d4840a] hover:bg-[#fde6b8] transition-colors border-none cursor-pointer uppercase">Plan</button>
-         )}
+       <div className="flex shrink-0 ml-1 text-[#9b9890] hover:text-[#1a1917] transition-colors p-2 active:scale-90" onClick={(e) => {
+          e.stopPropagation();
+          // Ideally open a quick status change, but for now just prevent opening detail view
+       }}>
+          <Bookmark size={18} strokeWidth={2.5} />
        </div>
     </div>
   )
@@ -550,43 +593,43 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
 
       <div className="relative z-10 flex-1 bg-brand-bg rounded-t-[20px] -mt-5 px-6 pt-8 pb-32 flex flex-col shadow-[0_-4px_16px_rgba(0,0,0,0.05)] border-t border-brand-border">
         <div className="flex items-center gap-2.5 mb-2 flex-wrap">
-           <span className="text-[11px] font-semibold text-[#7a7068] bg-[#f0ede8] border border-brand-border/50 px-2 py-0.5 rounded-md">{item.type === 'movie' ? 'Movie' : 'Series'}</span>
-           {item.year && <span className="text-[12px] text-[#a09890]">{item.year}</span>}
-           {item.rating && <span className="text-[12px] font-semibold text-brand-text flex items-center gap-1 ml-auto"><Star size={12} className="fill-[#f57f17] stroke-none" /> {item.rating}</span>}
+           <span className="text-[11px] font-bold tracking-[0.08em] text-[#9b9890] uppercase">{item.type}</span>
+           {item.year && <span className="text-[12px] font-medium text-[#9b9890]">{item.year}</span>}
+           {item.rating && <span className="text-[12px] font-semibold text-[#1a1917] flex items-center gap-1 ml-auto"><Star size={12} className="fill-[#e8a020] text-[#e8a020]" /> {item.rating}</span>}
         </div>
 
-        <h1 className="font-serif text-[42px] leading-[0.95] text-[#1a1714] mb-4 tracking-[-0.5px]">{item.title}</h1>
+        <h1 className="font-serif text-[42px] leading-[0.95] text-[#1a1917] mb-4 tracking-[-0.5px]">{item.title}</h1>
         
         {item.genre && (
           <div className="flex gap-1.5 flex-wrap mb-5">
              {item.genre.split(',').map(g => g.trim()).map(g => (
-                <span key={g} className="text-[11px] font-semibold px-2 py-1 rounded-[6px] bg-[#fff] shadow-sm text-[#7a7068] border border-brand-border/30">{g}</span>
+                <span key={g} className="text-[11px] font-semibold px-2 py-1 rounded-[6px] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06)] text-[#1a1917] border border-[#e0ddd6]">{g}</span>
              ))}
           </div>
         )}
 
-        <p className="text-[14px] text-[#7a7068] font-sans leading-[1.6] mb-8">{item.synopsis || "No synopsis available for this title."}</p>
+        <p className="text-[14px] text-[#9b9890] font-sans leading-[1.6] mb-8">{item.synopsis || "No synopsis available for this title."}</p>
 
         {/* Status Actions */}
-        <div className="flex flex-col gap-2 bg-brand-white rounded-[16px] p-1.5 border border-brand-border shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-6">
+        <div className="flex flex-col gap-2 bg-white rounded-[16px] p-1.5 border border-[#e0ddd6] shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-6 mt-4">
            <div className="flex gap-1 w-full">
               <button 
                 onClick={() => onUpdate({status: 'plan'})} 
-                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-colors cursor-pointer w-full ${item.status === 'plan' || !item.status ? 'bg-[#fef3e2] text-[#d4840a] shadow-sm tracking-[0.01em]' : 'text-[#a09890] hover:bg-brand-surface'}`}
+                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-colors cursor-pointer w-full ${item.status === 'plan' || !item.status ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5'}`}
               >
-                Plan
+                Plan to Watch
               </button>
               <button 
                 onClick={() => onUpdate({status: 'watching'})} 
-                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-colors cursor-pointer w-full ${item.status === 'watching' ? 'bg-[#e6f4ea] text-[#2e7d32] shadow-sm tracking-[0.01em]' : 'text-[#a09890] hover:bg-brand-surface'}`}
+                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-colors cursor-pointer w-full ${item.status === 'watching' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5'}`}
               >
                 Watching
               </button>
               <button 
                 onClick={() => onUpdate({status: 'completed'})} 
-                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-colors cursor-pointer w-full ${item.status === 'completed' ? 'bg-[#ede7f6] text-[#6a1bdb] shadow-sm tracking-[0.01em]' : 'text-[#a09890] hover:bg-brand-surface'}`}
+                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-colors cursor-pointer w-full ${item.status === 'completed' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5'}`}
               >
-                Done
+                Completed
               </button>
            </div>
         </div>
@@ -602,13 +645,13 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="absolute inset-0 bg-[#1a1917]/40 backdrop-blur-md flex flex-col items-center justify-center p-6 z-50 text-center"
           >
-              <div className="w-full bg-brand-white border border-brand-border rounded-[20px] p-6 shadow-xl flex flex-col gap-4 text-left">
-                 <h3 className="font-serif text-[28px] leading-none text-brand-text tracking-[-0.5px]">Edit poster</h3>
-                 <input value={tempPoster} onChange={e=>setTempPoster(e.target.value)} className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-brand-text text-[14px] font-sans outline-none focus:border-[#c5c2bb] placeholder:text-brand-sub" placeholder="https:// images..." />
+              <div className="w-full bg-[#f0ede8] border border-[#e0ddd6] rounded-[20px] p-6 shadow-xl flex flex-col gap-4 text-left">
+                 <h3 className="font-serif text-[28px] leading-none text-[#1a1917] tracking-[-0.5px]">Edit poster</h3>
+                 <input value={tempPoster} onChange={e=>setTempPoster(e.target.value)} className="w-full bg-white border border-[#e0ddd6] rounded-xl p-3 text-[#1a1917] text-[14px] font-sans outline-none focus:border-[#c5c2bb] placeholder:text-[#9b9890]" placeholder="https:// images..." />
                  
                  <div className="flex gap-2">
-                    <button onClick={() => { onUpdate({poster: tempPoster}); setIsEditingPoster(false); }} className="flex-1 bg-brand-accent text-brand-white font-medium rounded-xl py-3 text-[14px] active:scale-95 transition-transform cursor-pointer">Save</button>
-                    <button onClick={() => setIsEditingPoster(false)} className="bg-brand-surface text-brand-text font-medium rounded-xl px-5 py-3 text-[14px] active:scale-95 transition-transform cursor-pointer">Cancel</button>
+                    <button onClick={() => { onUpdate({poster: tempPoster}); setIsEditingPoster(false); }} className="flex-1 bg-[#1a1917] text-white font-medium rounded-xl py-3 text-[14px] active:scale-95 transition-transform cursor-pointer">Save</button>
+                    <button onClick={() => setIsEditingPoster(false)} className="bg-white border border-[#e0ddd6] text-[#1a1917] font-medium rounded-xl px-5 py-3 text-[14px] active:scale-95 transition-transform cursor-pointer hover:bg-black/5">Cancel</button>
                  </div>
                  
                  {item.poster && (
@@ -625,14 +668,14 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
 
 function ListCardSkeleton() {
   return (
-    <div className="bg-white rounded-[16px] flex items-center gap-[14px] p-[12px_16px_12px_12px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] animate-pulse">
-       <div className="w-[60px] h-[84px] rounded-[10px] bg-[#e0dbd4] shrink-0" />
-       <div className="flex-1 flex flex-col justify-center gap-2 py-1">
+    <div className="bg-white rounded-[16px] flex items-center gap-[12px] p-[12px_16px_12px_12px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] animate-pulse">
+       <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0" />
+       <div className="flex-1 flex flex-col justify-center gap-1.5 py-1">
          <div className="h-[14px] bg-[#e0dbd4] rounded-[4px] w-[85%] mb-1" />
          <div className="h-[10px] bg-[#e0dbd4]/70 rounded-[4px] w-[45%]" />
          <div className="h-[10px] bg-[#e0dbd4]/50 rounded-[4px] w-[60%]" />
        </div>
-       <div className="w-[68px] h-[26px] rounded-[20px] bg-[#e0dbd4]/60 shrink-0 ml-1" />
+       <div className="w-[20px] h-[20px] rounded-full bg-[#e0dbd4]/60 flex items-center shrink-0 ml-1" />
     </div>
   )
 }
@@ -640,7 +683,7 @@ function ListCardSkeleton() {
 function PosterCardSkeleton() {
   return (
      <div className="shrink-0 w-[110px] animate-pulse">
-        <div className="w-[110px] h-[155px] rounded-[10px] bg-[#e0dbd4] mb-2" />
+        <div className="w-[110px] h-[165px] rounded-[10px] bg-[#e0dbd4] mb-2" />
         <div className="h-[10px] bg-[#e0dbd4] rounded-full w-5/6 mb-1.5" />
         <div className="h-[8px] bg-[#e0dbd4]/70 rounded-full w-2/3" />
      </div>
