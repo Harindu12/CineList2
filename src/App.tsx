@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clapperboard, X, Edit3, Plus, Home, Search, Trash2, User } from 'lucide-react';
+import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus } from 'lucide-react';
 
 const STORAGE_KEY = 'cinelist_v1';
 
 type TitleType = 'movie' | 'tv';
+type TitleStatus = 'watching' | 'plan' | 'completed';
 
 interface TitleItem {
   id: number;
@@ -18,154 +19,8 @@ interface TitleItem {
   cast?: string[];
   synopsis?: string;
   poster?: string;
-}
-
-function WelcomeScreen({ onGetStarted }: { onGetStarted: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 bg-[#0a0a0c] flex flex-col justify-end p-8 pb-16">
-      <div className="absolute inset-0 bg-[#0a0a0c]">
-         <div className="absolute inset-0 opacity-20 bg-[url('https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=2000&auto=format&fit=crop')] bg-cover bg-center" />
-         <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a0c]/10 via-[#0a0a0c]/50 to-[#0a0a0c]" />
-      </div>
-      <div className="relative z-10 flex flex-col items-center text-center">
-         <h1 className="font-bebas text-6xl text-white mb-4">Welcome<br/>to CineList</h1>
-         <p className="text-white/60 mb-10 max-w-xs text-sm">Design your future watchlist and immerse yourself in the world of cinema.</p>
-         <button onClick={onGetStarted} className="bg-white text-black px-12 py-4 rounded-full font-medium text-sm w-full max-w-sm hover:scale-105 transition-transform">
-            Get Started
-         </button>
-      </div>
-    </div>
-  );
-}
-
-function TitleCard({ item, onClick }: { item: TitleItem; onClick: () => void }) {
-  return (
-    <motion.div
-      className="w-full bg-[#16161a] rounded-[16px] sm:rounded-[24px] overflow-hidden shadow-2xl cursor-pointer border border-white/5 flex flex-col group transition-transform duration-300 hover:-translate-y-2 h-[260px] sm:h-[420px] md:h-[520px]"
-      onClick={onClick}
-    >
-      {/* Top Image Section */}
-      <div className="relative flex-1 w-full shrink-0">
-        <div className="absolute top-3 sm:top-6 left-3 sm:left-6 z-10 text-white/90 text-[9px] sm:text-[13px] font-sans font-light tracking-wide drop-shadow-md">
-           {item.rating ? `★ ${item.rating}` : 'Unrated'}
-        </div>
-        
-        {item.poster ? (
-          <img src={item.poster} className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt={item.title} />
-        ) : (
-          <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-[#1e1e24] p-2 text-center">
-              <Clapperboard className="w-5 h-5 sm:w-8 sm:h-8 text-white/10 mb-1 sm:mb-2" />
-              <span className="text-white/30 text-[8px] sm:text-[10px] font-medium uppercase tracking-widest hidden sm:inline-block">Tap to Add Poster</span>
-          </div>
-        )}
-        
-        {/* Seamless Soft Fade Blend - tighter and lower */}
-        <div className="absolute bottom-0 inset-x-0 h-16 sm:h-24 bg-gradient-to-t from-[#16161a] via-[#16161a]/80 to-transparent pointer-events-none" />
-      </div>
-
-      {/* Bottom Content Section */}
-      <div className="flex flex-col px-4 sm:px-8 pb-4 sm:pb-8 pt-0 bg-[#16161a] relative z-10 shrink-0">
-        <h2 className="text-[14px] sm:text-[26px] font-serif text-[#f2f2f2] mb-0.5 sm:mb-1 leading-tight sm:leading-snug line-clamp-2">
-          {item.title}
-        </h2>
-        
-        {item.year && (
-          <p className="text-[#a0a0a5] text-[9px] sm:text-[13px] font-light mt-0.5 sm:mt-1 mb-2 sm:mb-4 line-clamp-1 sm:line-clamp-none">
-            {item.year} <span className="hidden sm:inline-block">{item.genre && `• Let's explore your ${item.genre.toLowerCase()} reality.`}</span>
-          </p>
-        )}
-        
-        <div className="mt-auto flex justify-between items-center w-full text-[#a0a0a5] text-[8px] sm:text-[11px] tracking-wide pt-2 sm:pt-4 border-t border-white/5">
-          <span className="lowercase opacity-80">cinelist</span>
-          <span className="opacity-80 lowercase hidden sm:inline-block">{item.type === 'tv' ? 'tv + series' : 'web + film'}</span>
-          <span className="opacity-80 lowercase sm:hidden">{item.type === 'tv' ? 'tv' : 'film'}</span>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function DetailView({ item, onClose, onRemove, onUpdatePoster }: { item: TitleItem; onClose: () => void; onRemove: (id: number) => void; onUpdatePoster: (id: number, url: string) => void }) {
-  const [isEditingPoster, setIsEditingPoster] = useState(false);
-  const [tempPoster, setTempPoster] = useState(item.poster || '');
-
-  return (
-    <motion.div
-      initial={{ y: "100%" }}
-      animate={{ y: 0 }}
-      exit={{ y: "100%" }}
-      transition={{ type: "spring", damping: 30, stiffness: 300, mass: 0.8 }}
-      className="fixed inset-0 z-[100] bg-[#0a0a0c] flex flex-col overflow-y-auto overflow-x-hidden p-0 m-0 w-full h-[100dvh] no-scrollbar"
-    >
-      <div className="absolute inset-0 w-full min-h-[100dvh]">
-          {item.poster ? (
-             <img src={item.poster} className="w-full h-full object-cover" alt={item.title} />
-          ) : (
-             <div className="w-full h-full bg-brand-dim flex flex-col items-center justify-center">
-                 <Clapperboard size={64} className="text-white/10 mb-4" />
-                 <span className="text-white/30 font-medium uppercase tracking-widest text-sm">No Poster Added</span>
-             </div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0c] via-[#0a0a0c]/80 to-transparent" />
-      </div>
-
-      <button onClick={onClose} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white flex items-center justify-center z-10 hover:bg-white/20">
-         <X size={20} />
-      </button>
-
-      <div className="relative z-10 mt-auto p-6 flex flex-col gap-4 pb-24">
-         <div className="w-fit text-xs px-3 py-1 bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-white tracking-widest uppercase">
-            {item.type === 'tv' ? 'TV Series' : 'Movie'}
-         </div>
-
-         <h1 className="font-bebas text-5xl sm:text-7xl leading-none text-white drop-shadow-xl mt-2 mb-2 uppercase">
-            {item.title}
-         </h1>
-
-         <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-white/70">
-            {item.year && <span>{item.year}</span>}
-            {item.rating && <span className="text-brand-accent">★ {item.rating}</span>}
-            {item.genre && <span>{item.genre}</span>}
-         </div>
-
-         <p className="text-white/80 font-light text-sm sm:text-base leading-relaxed max-w-2xl mt-2">
-            {item.synopsis || "No synopsis available."}
-         </p>
-         
-         <div className="flex gap-3 mt-6 border-t border-white/10 pt-6">
-            <button onClick={() => { onRemove(item.id); onClose(); }} className="flex gap-2 items-center bg-white/10 hover:bg-[#e05050]/20 hover:text-[#e05050] text-white/90 px-4 py-3 rounded-full text-xs font-medium tracking-wider uppercase transition-colors">
-               <Trash2 size={16} /> Remove
-            </button>
-            <button onClick={() => setIsEditingPoster(true)} className="flex gap-2 items-center bg-white/10 hover:bg-white/20 text-white/90 px-4 py-3 rounded-full text-xs font-medium tracking-wider uppercase transition-colors">
-               <Edit3 size={16} /> {item.poster ? 'Edit Poster' : 'Add Poster'}
-            </button>
-         </div>
-      </div>
-      
-      <AnimatePresence>
-        {isEditingPoster && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/80 backdrop-blur-lg flex flex-col items-center justify-center p-6 z-20"
-          >
-              <div className="w-full max-w-sm bg-brand-surface border border-white/10 rounded-[24px] p-6 shadow-2xl flex flex-col gap-4">
-                 <h3 className="font-bebas text-2xl text-white">Update Poster</h3>
-                 <input value={tempPoster} onChange={e=>setTempPoster(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-lg p-3 text-white text-sm outline-none focus:border-brand-accent" placeholder="https://" />
-                 
-                 <div className="flex gap-2 mt-1">
-                    <button onClick={() => setTempPoster('')} className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg text-xs uppercase tracking-widest w-full">Remove Image</button>
-                 </div>
-
-                 <div className="flex gap-3 mt-2">
-                    <button onClick={() => { onUpdatePoster(item.id, tempPoster); setIsEditingPoster(false); }} className="flex-1 bg-brand-accent text-black font-semibold rounded-lg py-3 text-sm">Save</button>
-                    <button onClick={() => setIsEditingPoster(false)} className="flex-1 bg-white/10 text-white font-semibold rounded-lg py-3 text-sm hover:bg-white/20">Cancel</button>
-                 </div>
-              </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  )
+  status?: TitleStatus;
+  progress?: number;
 }
 
 export default function App() {
@@ -175,29 +30,29 @@ export default function App() {
   });
   
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [showSearch, setShowSearch] = useState(false);
-  const [showManual, setShowManual] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [nameQuery, setNameQuery] = useState('');
+  const [posterQuery, setPosterQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
-  
-  const [manualData, setManualData] = useState<Partial<TitleItem>>({ type: 'movie' });
+  const [filter, setFilter] = useState('All');
+  const [activeNav, setActiveNav] = useState('Home');
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items]);
 
-  const addTitleAI = async (query: string) => {
-    if (!query.trim()) return;
+  const handleAdd = async () => {
+    if (!nameQuery.trim()) return;
 
     setIsLoading(true);
-    setStatusText(`Searching for "${query}"…`);
+    setStatusText('Adding...');
 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Find details for the movie or TV show: "${query}". Use the googleSearch tool to fetch accurate metadata. Return a raw JSON object only. Do NOT provide a poster URL.`,
+        contents: `Find details for the movie or TV show: "${nameQuery}". Use the googleSearch tool to fetch accurate metadata. Return a raw JSON object only. Do NOT provide a poster URL.`,
         tools: [{ googleSearch: {} }],
         config: {
           responseMimeType: "application/json",
@@ -220,17 +75,18 @@ export default function App() {
 
       const text = response.text || "{}";
       const info = JSON.parse(text);
-      if (!info.title) throw new Error('Could not find that title.');
+      const title = info.title || nameQuery;
 
-      if (items.find((i) => i.title.toLowerCase() === info.title.toLowerCase() && i.type === info.type)) {
-        setStatusText(`"${info.title}" is already in your list.`);
+      if (items.some((i) => i.title.toLowerCase() === title.toLowerCase())) {
+        setStatusText('Already in list.');
+        setIsLoading(false);
         setTimeout(() => setStatusText(''), 3000);
         return;
       }
 
       const newItem: TitleItem = {
         id: Date.now(),
-        title: info.title,
+        title: title,
         type: info.type === 'tv' ? 'tv' : 'movie',
         year: info.year,
         director: info.director,
@@ -238,219 +94,435 @@ export default function App() {
         rating: info.rating,
         cast: info.cast,
         synopsis: info.synopsis,
-        poster: info.poster
+        status: 'plan',
+        progress: 0,
+        poster: posterQuery.trim() || undefined
       };
 
       setItems(prev => [newItem, ...prev]);
-      setSearchQuery('');
-      setShowSearch(false);
+      setNameQuery('');
+      setPosterQuery('');
+      setShowAdd(false);
       setStatusText('');
     } catch (err: any) {
-      setStatusText(err.message || 'Something went wrong. Try again.');
-      setTimeout(() => setStatusText(''), 3000);
+      if (items.some((i) => i.title.toLowerCase() === nameQuery.trim().toLowerCase())) {
+        setStatusText('Already in list.');
+        setIsLoading(false);
+        setTimeout(() => setStatusText(''), 3000);
+        return;
+      }
+
+      const newItem: TitleItem = {
+        id: Date.now(),
+        title: nameQuery,
+        type: 'movie',
+        status: 'plan',
+        progress: 0,
+        poster: posterQuery.trim() || undefined
+      };
+      setItems(prev => [newItem, ...prev]);
+      setNameQuery('');
+      setPosterQuery('');
+      setShowAdd(false);
+      setStatusText('');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleManualAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!manualData.title) return;
-    
-    if (items.find((i) => i.title.toLowerCase() === manualData.title!.toLowerCase() && i.type === manualData.type)) {
-       return; // Already exists
-    }
-
-    const newItem: TitleItem = {
-      id: Date.now(),
-      title: manualData.title,
-      type: (manualData.type as TitleType) || 'movie',
-      year: manualData.year,
-      poster: manualData.poster,
-      genre: manualData.genre
-    };
-
-    setItems(prev => [newItem, ...prev]);
-    setShowManual(false);
-    setManualData({ type: 'movie' });
+  const updateItem = (id: number, updates: Partial<TitleItem>) => {
+    setItems(items.map(i => i.id === id ? { ...i, ...updates } : i));
   };
 
   const removeItem = (id: number) => {
     setItems(items.filter(i => i.id !== id));
   };
 
-  const updatePoster = (id: number, url: string) => {
-    setItems(items.map(i => i.id === id ? { ...i, poster: url } : i));
-  };
+  // Filtering
+  const filteredItems = useMemo(() => {
+     let filtered = items;
+     if (filter === 'Watching') filtered = items.filter(i => i.status === 'watching');
+     else if (filter === 'Plan to Watch') filtered = items.filter(i => i.status === 'plan' || !i.status);
+     else if (filter === 'Completed') filtered = items.filter(i => i.status === 'completed');
+     else if (filter === 'Movies') filtered = items.filter(i => i.type === 'movie');
+     else if (filter === 'Series') filtered = items.filter(i => i.type === 'tv');
+     return filtered;
+  }, [items, filter]);
+
+  const recentlyAdded = [...items].sort((a, b) => b.id - a.id).slice(0, 5);
+  const watchingItems = items.filter(i => i.status === 'watching');
+  const planItems = items.filter(i => i.status === 'plan' || !i.status);
+  const completedItems = items.filter(i => i.status === 'completed');
 
   const selectedItem = items.find(i => i.id === selectedId);
 
-  if (items.length === 0 && !showSearch && !showManual) {
-    return <WelcomeScreen onGetStarted={() => setShowSearch(true)} />;
-  }
-
   return (
-    <div className="relative min-h-screen">
-      <div className="bg-noise fixed inset-0"></div>
-
-      {/* Top Header */}
-      <div className="fixed top-0 inset-x-0 h-28 bg-gradient-to-b from-[#0a0a0c] via-[#0a0a0c]/80 to-transparent z-40 pointer-events-none px-6 pt-10 flex justify-between items-start">
-         <div className="w-10 h-10 rounded-full bg-brand-surface border border-white/10 flex items-center justify-center shadow-lg backdrop-blur-md pointer-events-auto">
-            <User size={18} className="text-white/70" />
-         </div>
-         <div className="pointer-events-auto font-bebas text-lg tracking-widest text-brand-muted uppercase mt-2">
-            Your CineList
-         </div>
-         <div className="w-10 h-10" />
+    <div className="relative min-h-screen bg-brand-bg w-full max-w-[430px] mx-auto pb-24 overflow-x-hidden font-sans no-scrollbar">
+      
+      {/* HEADER */}
+      <div className="pt-[58px] px-6 flex items-start justify-between">
+        <div className="font-serif text-[28px] tracking-[-0.5px] leading-none text-brand-text">
+           Watch<em className="italic text-brand-sub ml-0.5">list</em>
+        </div>
       </div>
 
-      {/* Main Content Area */}
-      <main className="px-3 sm:px-6 pb-48 pt-24 sm:pt-32 min-h-screen relative w-full max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 lg:gap-8 no-scrollbar z-10 items-start">
-         {items.map((item) => (
-            <TitleCard key={item.id} item={item} onClick={() => setSelectedId(item.id)} />
-         ))}
-      </main>
-
-      {/* Bottom Main Navigation Bar */}
-      <div className="fixed bottom-8 inset-x-0 w-full flex justify-center z-40 pointer-events-none px-6">
-         <div className="bg-brand-surface/90 backdrop-blur-xl border border-white/10 rounded-full p-2 flex gap-2 pointer-events-auto shadow-2xl">
-            <button onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})} className="p-4 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors">
-               <Home size={20} />
-            </button>
-            <button onClick={() => setShowSearch(true)} className="p-4 rounded-full text-white hover:bg-white/10 transition-colors">
-               <Search size={20} />
-            </button>
-            <button onClick={() => setShowManual(true)} className="p-4 rounded-full text-white hover:bg-white/10 transition-colors">
-               <Plus size={20} />
-            </button>
-         </div>
+      {/* SUMMARY */}
+      <div className="pt-[18px] px-6 text-[13px] text-brand-sub tracking-[0.1px]">
+        {items.length} titles &nbsp;·&nbsp; {watchingItems.length} watching &nbsp;·&nbsp; {completedItems.length} completed
       </div>
 
-      {/* Detail View */}
+      {/* SEARCH OR ADD PREVIEW */}
+      <div className="pt-[20px] px-6">
+        <div 
+          className="bg-brand-white border border-brand-border rounded-xl flex items-center gap-2.5 px-3.5 py-[11px] cursor-text focus-within:border-[#c5c2bb] transition-colors" 
+          onClick={() => setShowAdd(true)}
+        >
+          <SearchIcon size={14} className="text-brand-sub shrink-0" strokeWidth={2} />
+          <span className="text-brand-sub text-[14px] w-full text-left">Search or Add titles…</span>
+        </div>
+      </div>
+
+      {/* TABS */}
+      <div className="flex gap-0 pt-[22px] px-6 border-b border-brand-border overflow-x-auto no-scrollbar m-0">
+        {['All', 'Watching', 'Plan to Watch', 'Completed', 'Movies', 'Series'].map((f) => (
+          <div 
+            key={f} 
+            onClick={() => setFilter(f)} 
+            className={`text-[13px] font-medium pb-3 mr-6 cursor-pointer border-b-[1.5px] whitespace-nowrap shrink-0 transition-colors ${filter === f ? 'text-brand-text border-brand-text' : 'text-brand-sub border-transparent'}`}
+          >
+            {f}
+          </div>
+        ))}
+      </div>
+
+      {/* LIST CONTENT */}
+      {filter !== 'All' ? (
+         // Filtered View
+         <div className="animate-in fade-in duration-300 pb-10">
+            <div className="pt-6 px-6 pb-2.5 text-[11px] font-medium tracking-[1px] uppercase text-brand-sub">{filter}</div>
+            <div className="px-6 flex flex-col gap-px">
+              {filteredItems.map((item, i) => (
+                 <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
+              ))}
+              {filteredItems.length === 0 && <div className="text-center py-10 text-brand-sub text-sm">No titles found.</div>}
+            </div>
+         </div>
+      ) : (
+         // Main All View
+         <div className="animate-in fade-in duration-300 pb-10">
+            {recentlyAdded.length > 0 && (
+              <>
+                <div className="pt-6 px-6 pb-2.5 text-[11px] font-medium tracking-[1px] uppercase text-brand-sub">Recently added</div>
+                <div className="flex gap-3 px-6 overflow-x-auto no-scrollbar">
+                  {recentlyAdded.map((item, i) => (
+                    <PosterCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
+                  ))}
+                </div>
+                <div className="h-px bg-brand-border mx-6 mt-5" />
+              </>
+            )}
+
+            {watchingItems.length > 0 && (
+               <>
+                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-medium tracking-[1px] uppercase text-brand-sub">Watching now</div>
+                 <div className="px-6 flex flex-col gap-px">
+                   {watchingItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
+                 </div>
+                 <div className="h-px bg-brand-border mx-6 mt-5" />
+               </>
+            )}
+
+            {planItems.length > 0 && (
+               <>
+                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-medium tracking-[1px] uppercase text-brand-sub">Plan to watch</div>
+                 <div className="px-6 flex flex-col gap-px">
+                   {planItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
+                 </div>
+                 <div className="h-px bg-brand-border mx-6 mt-5" />
+               </>
+            )}
+
+            {completedItems.length > 0 && (
+               <>
+                 <div className="pt-5 px-6 pb-2.5 text-[11px] font-medium tracking-[1px] uppercase text-brand-sub">Completed</div>
+                 <div className="px-6 flex flex-col gap-px">
+                   {completedItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
+                 </div>
+                 <div className="h-px bg-brand-border mx-6 mt-[20px]" />
+               </>
+            )}
+
+            {items.length === 0 && (
+               <div className="px-8 py-16 flex flex-col items-center text-center">
+                  <div className="w-16 h-16 bg-brand-white rounded-full border border-brand-border flex items-center justify-center mb-4 text-brand-sub">
+                    <List size={24} />
+                  </div>
+                  <h3 className="text-xl font-serif text-brand-text mb-2 tracking-[-0.5px]">Your list is empty</h3>
+                  <p className="text-brand-sub text-[13px] max-w-[240px]">Tap the plus icon above or use the search bar to add titles.</p>
+               </div>
+            )}
+         </div>
+      )}
+
+      <div className="h-[110px]" />
+
+      {/* FLOATING BOTTOM BAR */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-brand-nav-bg rounded-[22px] flex items-center justify-center p-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.22),_0_2px_8px_rgba(0,0,0,0.12)] z-40 backdrop-blur-[20px] animate-[fadeUp_0.5s_cubic-bezier(0.22,1,0.36,1)_0.1s_both]">
+        
+        <div className="flex items-center gap-1">
+           <div 
+             onClick={() => setActiveNav('Home')} 
+             className={`w-[56px] h-[52px] flex flex-col items-center justify-center gap-1 rounded-[16px] cursor-pointer transition-colors active:bg-white/5 ${activeNav === 'Home' ? 'text-brand-nav-text' : 'text-brand-nav-muted hover:bg-white/5'}`}
+           >
+             <Home className="w-[22px] h-[22px] transition-all" strokeWidth={activeNav === 'Home' ? 2.1 : 1.7} />
+             <span className="text-[10px] font-medium tracking-[0.2px] leading-none">Home</span>
+           </div>
+           
+           <div 
+             className="w-[56px] h-[52px] flex items-center justify-center cursor-pointer active:opacity-70 active:scale-95 transition-all" 
+             onClick={() => setShowAdd(true)}
+           >
+             <div className="w-[46px] h-[46px] rounded-[14px] bg-brand-nav-text flex items-center justify-center">
+               <Plus className="w-5 h-5 text-brand-nav-bg" strokeWidth={2.2} />
+             </div>
+           </div>
+        </div>
+      </div>
+
+      {/* ITEM DETAIL VIEW */}
       <AnimatePresence>
         {selectedItem && (
-          <DetailView 
-            key="detail-view"
-            item={selectedItem} 
-            onClose={() => setSelectedId(null)} 
-            onRemove={removeItem}
-            onUpdatePoster={updatePoster}
-          />
+           <ItemDetailView 
+              key="detail-view"
+              item={selectedItem} 
+              onClose={() => setSelectedId(null)}
+              onUpdate={(updates) => updateItem(selectedItem.id, updates)}
+              onRemove={removeItem}
+           />
         )}
       </AnimatePresence>
 
-      {/* Search Sheet */}
+      {/* ADD OVERLAY */}
       <AnimatePresence>
-        {showSearch && (
+        {showAdd && (
           <>
-            <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => setShowSearch(false)} className="fixed inset-0 bg-[#0a0a0c]/80 backdrop-blur-sm z-[60]" />
+            <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => !isLoading && setShowAdd(false)} className="fixed inset-0 bg-brand-bg/80 backdrop-blur-sm z-[60] w-full max-w-[430px] mx-auto" />
             <motion.div 
               initial={{ opacity: 0, y: "100%" }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-x-0 bottom-0 z-[70] p-4 pt-24 pointer-events-none"
+              className="fixed inset-x-0 bottom-0 z-[70] p-4 pt-16 pointer-events-none w-full max-w-[430px] mx-auto"
             >
-               <div className="w-full max-w-lg mx-auto bg-brand-surface/95 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 pb-8 shadow-2xl pointer-events-auto flex flex-col gap-4">
+               <div className="w-full bg-brand-white border border-brand-border rounded-[24px] p-6 pb-8 shadow-[0_8px_32px_rgba(0,0,0,0.12)] pointer-events-auto flex flex-col gap-4">
                   <div className="flex justify-between items-center mb-2">
-                     <h3 className="font-bebas text-2xl text-white tracking-widest">Find a Title</h3>
-                     <button onClick={() => setShowSearch(false)} className="text-white/50 hover:text-white bg-white/5 p-2 rounded-full"><X size={20}/></button>
+                     <h3 className="font-serif text-3xl text-brand-text tracking-[-0.5px]">Add title</h3>
+                     <button onClick={() => !isLoading && setShowAdd(false)} className="text-brand-sub hover:bg-brand-surface active:bg-brand-surface cursor-pointer p-2 rounded-full transition-colors"><X size={20}/></button>
                   </div>
                   
-                  <div className="flex flex-col gap-2 relative">
+                  <div className="flex flex-col gap-3 relative">
                      <input 
                         autoFocus
-                        placeholder="Ask AI for a movie or TV show..." 
-                        value={searchQuery}
-                        onChange={e=>setSearchQuery(e.target.value)}
-                        onKeyDown={e=>e.key==='Enter' && !isLoading && searchQuery && addTitleAI(searchQuery)}
-                        className="w-full bg-[#0a0a0c]/80 border border-white/10 rounded-2xl py-4 px-5 text-white outline-none focus:border-brand-accent placeholder:text-white/30"
+                        placeholder="Movie or series name..." 
+                        value={nameQuery}
+                        onChange={e=>setNameQuery(e.target.value)}
+                        onKeyDown={e=>e.key==='Enter' && !isLoading && nameQuery && handleAdd()}
+                        className="w-full bg-brand-bg border border-brand-border rounded-xl py-3.5 px-4 text-brand-text outline-none focus:border-[#c5c2bb] placeholder:text-brand-sub text-[14px]"
                      />
+                     <input 
+                        placeholder="Image URL (optional)" 
+                        value={posterQuery}
+                        onChange={e=>setPosterQuery(e.target.value)}
+                        onKeyDown={e=>e.key==='Enter' && !isLoading && nameQuery && handleAdd()}
+                        className="w-full bg-brand-bg border border-brand-border rounded-xl py-3.5 px-4 text-brand-text outline-none focus:border-[#c5c2bb] placeholder:text-brand-sub text-[14px]"
+                     />
+                     
+                     {statusText && <div className="text-brand-sub text-[13px]">{statusText}</div>}
+
                      <button 
-                        disabled={!searchQuery || isLoading}
-                        onClick={() => addTitleAI(searchQuery)}
-                        className="absolute right-2 top-2 bottom-2 bg-brand-accent text-black font-bebas px-6 rounded-xl hover:bg-[#f0d47e] disabled:opacity-50 tracking-wider text-xl flex items-center justify-center transition-colors"
+                        disabled={!nameQuery || isLoading}
+                        onClick={handleAdd}
+                        className="w-full mt-2 bg-brand-accent text-brand-white font-medium py-3.5 rounded-xl hover:opacity-90 disabled:opacity-50 text-[14px] flex items-center justify-center cursor-pointer transition-opacity"
                      >
-                        {isLoading ? '...' : 'ADD'}
+                        {isLoading ? 'Adding...' : 'Add to watchlist'}
                      </button>
                   </div>
-                  
-                  {statusText && <div className="text-brand-accent text-xs pl-2">{statusText}</div>}
-                  
-                  <div className="flex items-center gap-4 my-2">
-                     <div className="h-px bg-white/5 flex-1"></div>
-                     <span className="text-white/20 text-[10px] font-medium uppercase tracking-widest">OR</span>
-                     <div className="h-px bg-white/5 flex-1"></div>
-                  </div>
-                  
-                  <button 
-                     onClick={() => { setShowSearch(false); setShowManual(true); }}
-                     className="w-full py-4 rounded-2xl border flex items-center justify-center gap-2 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-colors text-sm font-medium uppercase tracking-widest"
-                  >
-                     <Plus size={16} /> Enter Details Manually
-                  </button>
                </div>
             </motion.div>
           </>
-        )}
-      </AnimatePresence>
-
-      {/* Manual Entry Sheet */}
-      <AnimatePresence>
-        {showManual && (
-          <motion.div
-            initial={{ opacity: 0, y: "100%" }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: "100%" }}
-            transition={{ type: "spring", damping: 30, stiffness: 300 }}
-            className="fixed inset-0 z-[80] bg-[#0a0a0c] flex flex-col no-scrollbar border-t-[1px] border-white/10 overflow-y-auto"
-          >
-            <div className="flex justify-between items-center p-6 border-b border-white/10 mt-6 sm:mt-0">
-              <h2 className="font-bebas text-3xl text-white tracking-widest">Manual Entry</h2>
-              <button onClick={() => setShowManual(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white">
-                <X size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleManualAdd} className="p-6 flex flex-col gap-8 max-w-lg mx-auto w-full mb-12">
-               <div className="flex flex-col gap-2">
-                  <label className="text-xs uppercase tracking-widest text-white/50">Title</label>
-                  <input required value={manualData.title || ''} onChange={e => setManualData({...manualData, title: e.target.value})} className="bg-transparent border-b border-white/20 pb-2 text-3xl font-bebas tracking-wide text-white outline-none focus:border-brand-accent transition-colors" placeholder="Enter title" autoFocus />
-               </div>
-               
-               <div className="flex gap-6">
-                 <div className="flex flex-col gap-2 flex-1">
-                    <label className="text-[10px] sm:text-xs uppercase tracking-widest text-white/50">Type</label>
-                    <select value={manualData.type} onChange={e => setManualData({...manualData, type: e.target.value as TitleType})} className="bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none appearance-none cursor-pointer">
-                       <option value="movie" className="text-black">Movie</option>
-                       <option value="tv" className="text-black">TV Series</option>
-                    </select>
-                 </div>
-                 <div className="flex flex-col gap-2 flex-1">
-                    <label className="text-[10px] sm:text-xs uppercase tracking-widest text-white/50">Year</label>
-                    <input value={manualData.year || ''} onChange={e => setManualData({...manualData, year: e.target.value})} className="bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-brand-accent transition-colors" placeholder="2024" />
-                 </div>
-               </div>
-
-               <div className="flex flex-col gap-2">
-                  <label className="text-[10px] sm:text-xs uppercase tracking-widest text-white/50">Poster Image URL (Optional)</label>
-                  <input value={manualData.poster || ''} onChange={e => setManualData({...manualData, poster: e.target.value})} className="bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-brand-accent transition-colors text-sm" placeholder="https://" />
-               </div>
-               
-               <div className="flex flex-col gap-2">
-                  <label className="text-[10px] sm:text-xs uppercase tracking-widest text-white/50">Genre (Optional)</label>
-                  <input value={manualData.genre || ''} onChange={e => setManualData({...manualData, genre: e.target.value})} className="bg-white/5 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-brand-accent transition-colors text-sm" placeholder="Action, Sci-Fi" />
-               </div>
-
-               <button type="submit" disabled={!manualData.title} className="mt-4 bg-brand-accent text-black py-5 rounded-2xl font-bebas text-2xl tracking-widest disabled:opacity-50 hover:bg-[#f0d47e] transition-colors">
-                  SAVE TO WATCHLIST
-               </button>
-            </form>
-          </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
 }
 
+// Sub-components
 
+function PosterCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void }) {
+  return (
+     <div 
+       onClick={onClick} 
+       className="shrink-0 w-[110px] cursor-pointer active:opacity-70 transition-opacity animate-[fadeUp_0.35s_ease_both]"
+       style={{ animationDelay: `${index * 0.05 + 0.05}s` }}
+     >
+        <div className="w-[110px] h-[155px] rounded-[10px] bg-brand-surface border border-brand-border flex items-center justify-center text-[36px] mb-2 overflow-hidden shadow-sm">
+          {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (item.type === 'movie' ? '🎬' : '📺')}
+        </div>
+        <div className="text-[12px] font-medium text-brand-text break-words line-clamp-1 whitespace-nowrap overflow-hidden text-ellipsis mb-0.5">{item.title}</div>
+        <div className="text-[11px] text-brand-sub">{item.year || 'Unknown'} · {item.type === 'movie' ? 'Movie' : 'Series'}</div>
+     </div>
+  );
+}
+
+function ListCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void }) {
+  const isWatching = item.status === 'watching';
+  const isCompleted = item.status === 'completed';
+  
+  return (
+    <div 
+       onClick={onClick} 
+       className="list-item bg-brand-white flex items-center gap-[14px] p-3.5 cursor-pointer active:bg-brand-surface transition-colors animate-[fadeUp_0.3s_ease_both]"
+       style={{ animationDelay: `${index * 0.04 + 0.04}s` }}
+    >
+       <div className="w-[42px] h-[58px] rounded-[7px] bg-brand-surface border border-brand-border shrink-0 flex items-center justify-center text-xl overflow-hidden shadow-sm">
+          {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (item.type === 'movie' ? '🍿' : '📺')}
+       </div>
+       
+       <div className="flex-1 min-w-0 pr-1 flex flex-col justify-center">
+         <div className="text-[14px] font-medium mb-[3px] truncate text-brand-text">{item.title}</div>
+         <div className="text-[12px] text-brand-sub flex items-center gap-[6px] truncate">
+            {item.type === 'movie' ? 'Movie' : 'Series'}
+            <div className="w-[3px] h-[3px] rounded-full bg-brand-border shrink-0" />
+            <span className="truncate">{item.year || 'Unknown'} {item.genre ? `· ${item.genre.split(',')[0].trim()}` : ''}</span>
+         </div>
+       </div>
+
+       <div className="flex flex-col items-end gap-[6px] shrink-0 pl-1">
+         {isWatching ? (
+            <span className="text-[10px] font-medium tracking-[0.3px] px-2 py-[3px] rounded-full bg-[#e8f5e9] text-[#2e7d32]">Watching</span>
+         ) : isCompleted ? (
+            <span className="text-[10px] font-medium tracking-[0.3px] px-2 py-[3px] rounded-full bg-brand-surface text-brand-sub">Done</span>
+         ) : (
+            <span className="text-[10px] font-medium tracking-[0.3px] px-2 py-[3px] rounded-full bg-[#fff8e1] text-[#f57f17]">Plan</span>
+         )}
+
+         {isWatching && (
+            <div className="w-11">
+               <div className="h-[2px] bg-brand-border rounded-[2px] overflow-hidden">
+                 <div className="h-full bg-brand-sub rounded-[2px]" style={{ width: `${item.progress || 0}%` }}></div>
+               </div>
+               <div className="text-[10px] text-brand-sub text-right mt-0.5">{item.progress || 0}%</div>
+            </div>
+         )}
+       </div>
+    </div>
+  )
+}
+
+function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem; onClose: () => void; onUpdate: (updates: Partial<TitleItem>) => void; onRemove: (id: number) => void; }) {
+  const [isEditingPoster, setIsEditingPoster] = useState(false);
+  const [tempPoster, setTempPoster] = useState(item.poster || '');
+
+  return (
+    <motion.div initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} transition={{type: "spring", damping: 25, stiffness: 220}} className="fixed inset-0 z-50 bg-brand-bg flex flex-col overflow-y-auto no-scrollbar w-full max-w-[430px] mx-auto overflow-x-hidden">
+      
+      <div className="relative w-full aspect-[3/4] max-h-[45vh] shrink-0 bg-brand-surface shadow-sm">
+        {item.poster ? (
+           <img src={item.poster} className="w-full h-full object-cover" />
+        ) : (
+           <div className="w-full h-full flex flex-col items-center justify-center border-b border-brand-border text-[64px]">
+             {item.type === 'movie' ? '🎬' : '📺'}
+             <span className="text-brand-sub uppercase tracking-[1px] text-[10px] font-semibold mt-2">No Poster</span>
+           </div>
+        )}
+
+        <button onClick={onClose} className="absolute top-6 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 z-10 cursor-pointer shadow-sm hover:bg-black/50 active:scale-95 transition-all">
+           <X size={18} />
+        </button>
+        <button onClick={() => setIsEditingPoster(true)} className="absolute top-6 left-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 z-10 cursor-pointer shadow-sm hover:bg-black/50 active:scale-95 transition-all">
+           <ImagePlus size={16} />
+        </button>
+      </div>
+
+      <div className="relative z-10 flex-1 bg-brand-bg rounded-t-[20px] -mt-5 px-6 pt-8 pb-32 flex flex-col shadow-[0_-4px_16px_rgba(0,0,0,0.05)] border-t border-brand-border">
+        <div className="flex items-center gap-2.5 mb-2 flex-wrap">
+           <span className="text-[11px] font-medium text-brand-sub border border-brand-border px-2 py-0.5 rounded-md bg-brand-white">{item.type === 'movie' ? 'Movie' : 'Series'}</span>
+           {item.year && <span className="text-[12px] text-brand-sub">{item.year}</span>}
+           {item.rating && <span className="text-[12px] font-medium text-brand-text flex items-center gap-1 ml-auto"><Star size={12} className="fill-[#f57f17] stroke-none" /> {item.rating}</span>}
+        </div>
+
+        <h1 className="font-serif text-[42px] leading-[0.95] text-brand-text mb-4 tracking-[-0.5px]">{item.title}</h1>
+        
+        {item.genre && (
+          <div className="flex gap-1.5 flex-wrap mb-5">
+             {item.genre.split(',').map(g => g.trim()).map(g => (
+                <span key={g} className="text-[11px] font-medium px-2 py-1 rounded-[6px] bg-brand-surface text-brand-sub border border-brand-border/50">{g}</span>
+             ))}
+          </div>
+        )}
+
+        <p className="text-[14px] text-brand-sub font-sans leading-[1.6] mb-8">{item.synopsis || "No synopsis available for this title."}</p>
+
+        {/* Status Actions */}
+        <div className="flex flex-col gap-2 bg-brand-white rounded-[16px] p-1.5 border border-brand-border shadow-sm mb-6">
+           <div className="flex gap-1 w-full">
+              <button 
+                onClick={() => onUpdate({status: 'plan'})} 
+                className={`flex-1 py-3 rounded-[12px] text-[12px] font-medium transition-colors cursor-pointer w-full ${item.status === 'plan' || !item.status ? 'bg-[#fff8e1] text-[#f57f17] shadow-sm' : 'text-brand-sub hover:bg-brand-surface'}`}
+              >
+                Plan
+              </button>
+              <button 
+                onClick={() => onUpdate({status: 'watching'})} 
+                className={`flex-1 py-3 rounded-[12px] text-[12px] font-medium transition-colors cursor-pointer w-full ${item.status === 'watching' ? 'bg-[#e8f5e9] text-[#2e7d32] shadow-sm' : 'text-brand-sub hover:bg-brand-surface'}`}
+              >
+                Watching
+              </button>
+              <button 
+                onClick={() => onUpdate({status: 'completed'})} 
+                className={`flex-1 py-3 rounded-[12px] text-[12px] font-medium transition-colors cursor-pointer w-full ${item.status === 'completed' ? 'bg-brand-surface text-brand-text shadow-sm' : 'text-brand-sub hover:bg-brand-surface'}`}
+              >
+                Done
+              </button>
+           </div>
+           
+           {item.status === 'watching' && (
+             <motion.div initial={{height:0, opacity:0}} animate={{height:'auto', opacity:1}} className="px-3 pt-2 pb-1.5 flex items-center gap-4">
+               <span className="text-[11px] font-medium text-brand-sub w-14">Progress</span>
+               <input type="range" min="0" max="100" value={item.progress || 0} onChange={e => onUpdate({progress: parseInt(e.target.value)})} className="flex-1 accent-[#1a1917] h-[3px] bg-brand-surface rounded-full outline-none cursor-pointer" />
+               <span className="text-[12px] font-medium text-brand-text w-8 text-right font-sans">{item.progress || 0}%</span>
+             </motion.div>
+           )}
+        </div>
+
+        <button onClick={() => { onRemove(item.id); onClose(); }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[#d32f2f] hover:bg-[#d32f2f]/10 transition-colors mt-auto font-medium text-[13px] cursor-pointer">
+           <Trash2 size={16} /> Delete Title
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {isEditingPoster && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-[#1a1917]/40 backdrop-blur-md flex flex-col items-center justify-center p-6 z-50 text-center"
+          >
+              <div className="w-full bg-brand-white border border-brand-border rounded-[20px] p-6 shadow-xl flex flex-col gap-4 text-left">
+                 <h3 className="font-serif text-[28px] leading-none text-brand-text tracking-[-0.5px]">Edit poster</h3>
+                 <input value={tempPoster} onChange={e=>setTempPoster(e.target.value)} className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-brand-text text-[14px] font-sans outline-none focus:border-[#c5c2bb] placeholder:text-brand-sub" placeholder="https:// images..." />
+                 
+                 <div className="flex gap-2">
+                    <button onClick={() => { onUpdate({poster: tempPoster}); setIsEditingPoster(false); }} className="flex-1 bg-brand-accent text-brand-white font-medium rounded-xl py-3 text-[14px] active:scale-95 transition-transform cursor-pointer">Save changes</button>
+                    <button onClick={() => setIsEditingPoster(false)} className="bg-brand-surface text-brand-text font-medium rounded-xl px-5 py-3 text-[14px] active:scale-95 transition-transform cursor-pointer">Cancel</button>
+                 </div>
+                 
+                 {item.poster && (
+                   <button onClick={() => { setTempPoster(''); onUpdate({poster: ''}); setIsEditingPoster(false); }} className="mt-1 text-[13px] text-[#d32f2f] py-2 border border-[#d32f2f]/20 hover:bg-[#d32f2f]/5 rounded-lg font-medium cursor-pointer transition-colors w-full">Remove Poster image</button>
+                 )}
+              </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+    </motion.div>
+  )
+}
