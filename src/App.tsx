@@ -53,8 +53,8 @@ export default function App() {
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Find details for the movie or TV show: "${nameQuery}". Use the googleSearch tool to fetch accurate metadata. Return a raw JSON object only. Do NOT provide a poster URL.`,
-        tools: [{ googleSearch: {} }],
         config: {
+          tools: [{ googleSearch: {} }],
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -358,7 +358,7 @@ export default function App() {
 
 // Sub-components
 
-function PosterCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void }) {
+const PosterCard: React.FC<{ item: TitleItem; index: number; onClick: () => void; }> = ({ item, index, onClick }) => {
   return (
      <div 
        onClick={onClick} 
@@ -374,7 +374,7 @@ function PosterCard({ item, index, onClick }: { item: TitleItem, index: number, 
   );
 }
 
-function ListCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void }) {
+const ListCard: React.FC<{ item: TitleItem; index: number; onClick: () => void; }> = ({ item, index, onClick }) => {
   const isWatching = item.status === 'watching';
   const isCompleted = item.status === 'completed';
   
@@ -416,7 +416,7 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
   )
 }
 
-function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem; onClose: () => void; onUpdate: (updates: Partial<TitleItem>) => void; onRemove: (id: number) => void; }) {
+const ItemDetailView: React.FC<{ item: TitleItem; onClose: () => void; onUpdate: (updates: Partial<TitleItem>) => void; onRemove: (id: number) => void; }> = ({ item, onClose, onUpdate, onRemove }) => {
   const [isEditingPoster, setIsEditingPoster] = useState(false);
   const [tempPoster, setTempPoster] = useState(item.poster || '');
 
