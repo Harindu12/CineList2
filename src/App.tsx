@@ -480,15 +480,15 @@ export default function App() {
       </AnimatePresence>
 
       {/* FLOATING BOTTOM BAR */}
-      <div className="fixed bottom-5 left-6 right-6 bg-[#1a1917]/80 backdrop-blur-xl rounded-full px-5 py-3 flex items-center justify-between z-[50] shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-white/10 w-[calc(100%-48px)] max-w-[382px] mx-auto">
-        <button onClick={() => setActiveView('home')} className={`flex flex-col items-center gap-1 ${activeView === 'home' ? 'text-white' : 'text-[#9b9890] hover:text-white'} transition-colors cursor-pointer w-16`}>
+      <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#1a1917]/90 backdrop-blur-xl rounded-[24px] px-6 py-3 flex items-center justify-between z-[50] shadow-[0_12px_40px_rgba(0,0,0,0.2)] border border-[#333] w-[calc(100%-48px)] max-w-[320px]">
+        <button onClick={() => setActiveView('home')} className={`flex flex-col items-center gap-1 ${activeView === 'home' ? 'text-white' : 'text-[#b8b5ad] hover:text-white'} transition-colors cursor-pointer w-16`}>
            <Home size={22} strokeWidth={2.2} />
            <span className="text-[10px] font-bold tracking-wide">Home</span>
         </button>
-        <button onClick={() => setShowAdd(true)} className="w-[44px] h-[44px] bg-white rounded-[14px] flex items-center justify-center text-[#1a1917] hover:scale-105 active:scale-95 transition-transform shadow-md cursor-pointer">
+        <button onClick={() => setShowAdd(true)} className="w-[46px] h-[46px] bg-white rounded-[16px] flex items-center justify-center text-[#1a1917] hover:scale-105 hover:-translate-y-0.5 active:scale-95 transition-all shadow-[0_4px_14px_rgba(255,255,255,0.25)] cursor-pointer border border-[#f0ede8]">
            <Plus size={24} strokeWidth={3} />
         </button>
-        <button onClick={() => setActiveView('stats')} className={`flex flex-col items-center gap-1 ${activeView === 'stats' ? 'text-white' : 'text-[#9b9890] hover:text-white'} transition-colors cursor-pointer w-16`}>
+        <button onClick={() => setActiveView('stats')} className={`flex flex-col items-center gap-1 ${activeView === 'stats' ? 'text-white' : 'text-[#b8b5ad] hover:text-white'} transition-colors cursor-pointer w-16`}>
            <BarChart2 size={22} strokeWidth={2.2} />
            <span className="text-[10px] font-bold tracking-wide">Stats</span>
         </button>
@@ -504,10 +504,10 @@ function PosterCard({ item, index, onClick }: { item: TitleItem, index: number, 
   return (
      <div 
        onClick={onClick} 
-       className="shrink-0 w-[110px] cursor-pointer active:opacity-70 hover:-translate-y-1 transition-all animate-list-item"
+       className="shrink-0 w-[96px] cursor-pointer active:opacity-70 hover:-translate-y-1 transition-all animate-list-item"
        style={{ animationDelay: `${index * 0.05 + 0.05}s` }}
      >
-        <div className="w-[110px] h-[165px] rounded-[10px] bg-[#e0dbd4] border border-[#e0ddd6] flex items-center justify-center text-[36px] mb-2 overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+        <div className="w-[96px] h-[144px] rounded-[10px] bg-[#e0dbd4] border border-[#e0ddd6] flex items-center justify-center text-[36px] mb-2 overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
           {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (item.type === 'movie' ? '🎬' : '📺')}
         </div>
         <div className="text-[13px] font-semibold text-[#1a1917] break-words line-clamp-1 whitespace-nowrap overflow-hidden text-ellipsis mb-0.5 tracking-tight">{item.title}</div>
@@ -520,7 +520,7 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
   return (
     <div 
        onClick={onClick} 
-       className="bg-white rounded-[16px] flex items-center gap-[12px] p-[12px_16px_12px_12px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] cursor-pointer transition-all animate-list-item group"
+       className="bg-white rounded-[16px] flex items-center gap-[12px] p-[8px_16px_8px_8px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] cursor-pointer transition-all animate-list-item group"
        style={{ animationDelay: `${index * 0.03 + 0.02}s` }}
     >
        <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-xl overflow-hidden border border-[#e0ddd6] group-hover:-translate-y-0.5 transition-transform">
@@ -668,7 +668,7 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
 
 function ListCardSkeleton() {
   return (
-    <div className="bg-white rounded-[16px] flex items-center gap-[12px] p-[12px_16px_12px_12px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] animate-pulse">
+    <div className="bg-white rounded-[16px] flex items-center gap-[12px] p-[8px_16px_8px_8px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] animate-pulse">
        <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0" />
        <div className="flex-1 flex flex-col justify-center gap-1.5 py-1">
          <div className="h-[14px] bg-[#e0dbd4] rounded-[4px] w-[85%] mb-1" />
@@ -682,8 +682,8 @@ function ListCardSkeleton() {
 
 function PosterCardSkeleton() {
   return (
-     <div className="shrink-0 w-[110px] animate-pulse">
-        <div className="w-[110px] h-[165px] rounded-[10px] bg-[#e0dbd4] mb-2" />
+     <div className="shrink-0 w-[96px] animate-pulse">
+        <div className="w-[96px] h-[144px] rounded-[10px] bg-[#e0dbd4] mb-2" />
         <div className="h-[10px] bg-[#e0dbd4] rounded-full w-5/6 mb-1.5" />
         <div className="h-[8px] bg-[#e0dbd4]/70 rounded-full w-2/3" />
      </div>
