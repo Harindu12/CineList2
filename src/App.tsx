@@ -230,68 +230,62 @@ export default function App() {
     <div className="relative min-h-screen bg-brand-bg w-full max-w-[430px] mx-auto pb-24 overflow-clip font-sans no-scrollbar">
       <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
 
-      {/* STICKY HEADER AREA */}
-      <div className="sticky top-0 z-30 bg-brand-bg/95 backdrop-blur-md pb-0 pt-[24px] border-b border-transparent transition-all">
-        {/* HEADER */}
-        <div className="px-6 flex items-center justify-between">
-        <div className="font-serif text-[30px] tracking-[-0.02em] leading-none text-[#1a1714]">
-           Watch<em className="italic text-[#a09890] ml-[1px]">list</em>
-        </div>
-        <div className="flex items-center gap-2">
-          <button 
-             onClick={() => fileInputRef.current?.click()}
-             className="h-[34px] px-3.5 rounded-full border border-brand-border bg-white flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all text-[#a09890] hover:text-[#1a1714] hover:border-[#c5c2bb] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-             title="Import Watchlist Data"
-          >
-             <UploadCloud size={14} strokeWidth={2.5} />
-             <span className="text-[11px] font-bold tracking-[0.04em] uppercase">Import</span>
-          </button>
-          <button 
-             onClick={handleExport}
-             className="w-[34px] h-[34px] rounded-full border border-brand-border bg-white flex items-center justify-center cursor-pointer active:scale-95 transition-all text-[#a09890] hover:text-[#1a1714] hover:border-[#c5c2bb] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-             title="Export Cloud Data"
-          >
-             <Download size={14} strokeWidth={2.5} />
-          </button>
-        </div>
-      </div>
+      {/* FLOATING HEADER ISLAND */}
+      <div className="pt-4 px-4 sticky top-0 z-40">
+        <div className="bg-[#f0ede8]/85 backdrop-blur-[24px] border border-white/60 shadow-[0_8px_32px_rgba(0,0,0,0.06)] rounded-[32px] pb-3 pt-4 transition-all">
+          
+          {/* TOP ROW: TITLE & SETTINGS/ACTIONS */}
+          <div className="px-5 flex items-center justify-between mb-4">
+            <div className="font-serif text-[32px] tracking-[-0.03em] leading-none text-[#1a1714]">
+               Watch<em className="italic text-[#a09890] ml-[1px]">list</em>
+            </div>
+            <div className="flex items-center gap-1.5 bg-[#e4e1db]/80 p-1 rounded-full shadow-inner border border-white/20">
+              <button 
+                 onClick={() => fileInputRef.current?.click()}
+                 className="w-[30px] h-[30px] rounded-full bg-transparent flex items-center justify-center cursor-pointer hover:bg-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] active:scale-95 transition-all text-[#7a7068] hover:text-[#1a1714]"
+                 title="Import Watchlist Data"
+              >
+                 <UploadCloud size={15} strokeWidth={2.2} />
+              </button>
+              <button 
+                 onClick={handleExport}
+                 className="w-[30px] h-[30px] rounded-full bg-transparent flex items-center justify-center cursor-pointer hover:bg-white hover:shadow-[0_2px_8px_rgba(0,0,0,0.08)] active:scale-95 transition-all text-[#7a7068] hover:text-[#1a1714]"
+                 title="Export Cloud Data"
+              >
+                 <Download size={15} strokeWidth={2.2} />
+              </button>
+            </div>
+          </div>
 
-      {/* SUMMARY */}
-      <div className="pt-[18px] px-6 text-[13px] text-brand-sub tracking-[0.1px] flex items-center h-5">
-        {isInitializing ? (
-           <div className="h-3 w-48 bg-brand-border/60 rounded-full animate-pulse flex-none" />
-        ) : (
-           <>{items.length} titles &nbsp;·&nbsp; {watchingItems.length} watching &nbsp;·&nbsp; {completedItems.length} completed</>
-        )}
-      </div>
+          {/* SEARCH BAR (INTEGRATED & SLEEK) */}
+          <div className="px-4 mb-4">
+            <div 
+              className="bg-[#e9e6e0] rounded-[20px] flex items-center gap-2 pl-4 pr-1.5 py-[6px] cursor-text transition-all hover:bg-[#e4e1db] active:scale-[0.98] group shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)] border border-white/40" 
+              onClick={() => setShowAdd(true)}
+            >
+              <SearchIcon size={17} className="text-[#8a8278] shrink-0" strokeWidth={2} />
+              <span className="text-[#8a8278] text-[15px] font-medium w-full text-left tracking-[-0.01em]">Find or add a title…</span>
+              <div className="w-[34px] h-[34px] rounded-[14px] bg-[#1a1714] flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(0,0,0,0.15)] ml-auto group-hover:scale-105 group-active:scale-95 transition-transform">
+                 <Plus className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
+              </div>
+            </div>
+          </div>
 
-      {/* SEARCH OR ADD PREVIEW */}
-      <div className="pt-[20px] px-6">
-        <div 
-          className="bg-white border border-[#e0ddd6] rounded-[14px] flex items-center gap-[10px] pl-[14px] pr-2 py-2 cursor-text focus-within:border-[#c5c2bb] transition-all shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] group" 
-          onClick={() => setShowAdd(true)}
-        >
-          <SearchIcon size={16} className="text-[#a09890] shrink-0" strokeWidth={2.2} />
-          <span className="text-[#a09890] text-[14px] font-medium w-full text-left">Search or Add titles…</span>
-          <div className="w-[32px] h-[32px] rounded-[10px] bg-[#1a1714] flex items-center justify-center shrink-0 shadow-sm ml-auto group-active:scale-95 transition-transform">
-             <Plus className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
+          {/* PILL TABS */}
+          <div className="flex items-center justify-between px-4">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar hide-scroll-fade">
+              {['All', 'Watching', 'Plan to Watch', 'Completed'].map((f) => (
+                <div 
+                  key={f} 
+                  onClick={() => setFilter(f)} 
+                  className={`text-[13px] font-semibold px-4 py-[7px] rounded-full cursor-pointer whitespace-nowrap shrink-0 transition-all ${filter === f ? 'bg-[#1a1714] text-white shadow-md hover:scale-105' : 'bg-[#e4e1db]/50 text-[#7a7068] hover:bg-[#e4e1db]'}`}
+                >
+                  {f}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* TABS */}
-      <div className="flex pt-[22px] px-6 border-b border-brand-border overflow-x-auto no-scrollbar m-0">
-        {['All', 'Watching', 'Plan to Watch', 'Completed', 'Movies', 'Series'].map((f) => (
-          <div 
-            key={f} 
-            onClick={() => setFilter(f)} 
-            className={`text-[13px] font-medium pb-[10px] mr-6 cursor-pointer border-b-[2px] mb-[-1px] whitespace-nowrap shrink-0 transition-colors ${filter === f ? 'text-brand-text border-brand-text' : 'text-brand-sub border-transparent hover:text-brand-text'}`}
-          >
-            {f}
-          </div>
-        ))}
-        <div className="w-1 shrink-0 border-b-[2px] border-transparent mb-[-1px]" />
-      </div>
       </div>
 
       {/* LIST CONTENT */}
@@ -461,7 +455,7 @@ function PosterCard({ item, index, onClick }: { item: TitleItem, index: number, 
   return (
      <div 
        onClick={onClick} 
-       className="shrink-0 w-[110px] cursor-pointer active:opacity-70 hover:-translate-y-1 transition-all animate-[fadeUp_0.35s_ease_both]"
+       className="shrink-0 w-[110px] cursor-pointer active:opacity-70 hover:-translate-y-1 transition-all animate-list-item"
        style={{ animationDelay: `${index * 0.05 + 0.05}s` }}
      >
         <div className="w-[110px] h-[155px] rounded-[10px] bg-[#e0dbd4] border border-brand-border/40 flex items-center justify-center text-[36px] mb-2 overflow-hidden shadow-sm">
@@ -480,7 +474,7 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
   return (
     <div 
        onClick={onClick} 
-       className="bg-white rounded-[16px] flex items-center gap-[14px] p-[12px_16px_12px_12px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)] hover:-translate-y-[1px] cursor-pointer transition-all animate-[fadeUp_0.3s_ease_both]"
+       className="bg-white rounded-[16px] flex items-center gap-[14px] p-[12px_16px_12px_12px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)] hover:-translate-y-[1px] cursor-pointer transition-all animate-list-item"
        style={{ animationDelay: `${index * 0.04 + 0.04}s` }}
     >
        <div className="w-[60px] h-[84px] rounded-[10px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-2xl overflow-hidden shadow-sm border border-brand-border/40">
