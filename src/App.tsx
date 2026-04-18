@@ -37,7 +37,6 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [filter, setFilter] = useState('All');
-  const [activeNav, setActiveNav] = useState('Home');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -232,25 +231,25 @@ export default function App() {
       <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
 
       {/* HEADER */}
-      <div className="pt-[58px] px-6 flex items-start justify-between">
-        <div className="font-serif text-[28px] tracking-[-0.5px] leading-none text-brand-text">
-           Watch<em className="italic text-brand-sub ml-0.5">list</em>
+      <div className="pt-[58px] px-6 flex items-center justify-between">
+        <div className="font-serif text-[30px] tracking-[-0.02em] leading-none text-[#1a1714]">
+           Watch<em className="italic text-[#a09890] ml-[1px]">list</em>
         </div>
         <div className="flex items-center gap-2">
           <button 
              onClick={() => fileInputRef.current?.click()}
-             className="h-9 px-3 rounded-full border border-brand-border bg-brand-white flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all mt-[2px] text-brand-sub hover:text-brand-text hover:border-[#c5c2bb]"
+             className="h-[34px] px-3.5 rounded-full border border-brand-border bg-white flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all text-[#a09890] hover:text-[#1a1714] hover:border-[#c5c2bb] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
              title="Import Watchlist Data"
           >
-             <UploadCloud size={14} strokeWidth={2.2} />
-             <span className="text-[11px] font-medium tracking-[0.2px] uppercase">Import</span>
+             <UploadCloud size={14} strokeWidth={2.5} />
+             <span className="text-[11px] font-bold tracking-[0.04em] uppercase">Import</span>
           </button>
           <button 
              onClick={handleExport}
-             className="w-9 h-9 rounded-full border border-brand-border bg-brand-white flex items-center justify-center cursor-pointer active:scale-95 transition-all mt-[2px] text-brand-sub hover:text-brand-text hover:border-[#c5c2bb]"
+             className="w-[34px] h-[34px] rounded-full border border-brand-border bg-white flex items-center justify-center cursor-pointer active:scale-95 transition-all text-[#a09890] hover:text-[#1a1714] hover:border-[#c5c2bb] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
              title="Export Cloud Data"
           >
-             <Download size={14} strokeWidth={2.2} />
+             <Download size={14} strokeWidth={2.5} />
           </button>
         </div>
       </div>
@@ -267,25 +266,29 @@ export default function App() {
       {/* SEARCH OR ADD PREVIEW */}
       <div className="pt-[20px] px-6">
         <div 
-          className="bg-brand-white border border-brand-border rounded-xl flex items-center gap-2.5 px-3.5 py-[11px] cursor-text focus-within:border-[#c5c2bb] transition-colors" 
+          className="bg-white border border-[#e0ddd6] rounded-[14px] flex items-center gap-[10px] pl-[14px] pr-2 py-2 cursor-text focus-within:border-[#c5c2bb] transition-all shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.08)] group" 
           onClick={() => setShowAdd(true)}
         >
-          <SearchIcon size={14} className="text-brand-sub shrink-0" strokeWidth={2} />
-          <span className="text-brand-sub text-[14px] w-full text-left">Search or Add titles…</span>
+          <SearchIcon size={16} className="text-[#a09890] shrink-0" strokeWidth={2.2} />
+          <span className="text-[#a09890] text-[14px] font-medium w-full text-left">Search or Add titles…</span>
+          <div className="w-[32px] h-[32px] rounded-[10px] bg-[#1a1714] flex items-center justify-center shrink-0 shadow-sm ml-auto group-active:scale-95 transition-transform">
+             <Plus className="w-[18px] h-[18px] text-white" strokeWidth={2.5} />
+          </div>
         </div>
       </div>
 
       {/* TABS */}
-      <div className="flex gap-0 pt-[22px] px-6 border-b border-brand-border overflow-x-auto no-scrollbar m-0">
+      <div className="flex pt-[22px] px-6 border-b border-brand-border overflow-x-auto no-scrollbar m-0">
         {['All', 'Watching', 'Plan to Watch', 'Completed', 'Movies', 'Series'].map((f) => (
           <div 
             key={f} 
             onClick={() => setFilter(f)} 
-            className={`text-[13px] font-medium pb-3 mr-6 cursor-pointer border-b-[1.5px] whitespace-nowrap shrink-0 transition-colors ${filter === f ? 'text-brand-text border-brand-text' : 'text-brand-sub border-transparent'}`}
+            className={`text-[13px] font-medium pb-[10px] mr-6 cursor-pointer border-b-[2px] mb-[-1px] whitespace-nowrap shrink-0 transition-colors ${filter === f ? 'text-brand-text border-brand-text' : 'text-brand-sub border-transparent hover:text-brand-text'}`}
           >
             {f}
           </div>
         ))}
+        <div className="w-1 shrink-0 border-b-[2px] border-transparent mb-[-1px]" />
       </div>
 
       {/* LIST CONTENT */}
@@ -330,10 +333,11 @@ export default function App() {
             {recentlyAdded.length > 0 && (
               <>
                 <div className="pt-6 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Recently added</div>
-                <div className="flex gap-3 px-6 overflow-x-auto no-scrollbar py-2 -my-2">
+                <div className="flex gap-3 px-6 overflow-x-auto no-scrollbar py-2 -my-2 snap-x">
                   {recentlyAdded.map((item, i) => (
                     <PosterCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
                   ))}
+                  <div className="w-3 shrink-0" />
                 </div>
                 <div className="h-px bg-brand-border mx-6 mt-5" />
               </>
@@ -370,41 +374,16 @@ export default function App() {
             )}
 
             {items.length === 0 && (
-               <div className="px-8 py-16 flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-brand-white rounded-full border border-brand-border flex items-center justify-center mb-4 text-brand-sub">
-                    <List size={24} />
+               <div className="px-8 py-16 flex flex-col items-center text-center animate-in fade-in duration-500">
+                  <div className="w-[72px] h-[72px] bg-white rounded-full border border-[#e0ddd6] flex items-center justify-center mb-5 text-[#a09890] shadow-sm">
+                    <List size={28} strokeWidth={1.5} />
                   </div>
-                  <h3 className="text-xl font-serif text-brand-text mb-2 tracking-[-0.5px]">Your list is empty</h3>
-                  <p className="text-brand-sub text-[13px] max-w-[240px]">Tap the plus icon below or use the search bar to add titles.</p>
+                  <h3 className="text-[22px] font-serif text-[#1a1714] mb-2 tracking-[-0.02em]">Your list is empty</h3>
+                  <p className="text-[#a09890] text-[14px] max-w-[240px] leading-[1.5] font-medium">Tap the plus icon below or use the search bar to add titles.</p>
                </div>
             )}
          </div>
       )}
-
-      <div className="h-[110px]" />
-
-      {/* FLOATING BOTTOM BAR */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-brand-nav-bg rounded-[22px] flex items-center justify-center p-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.22),_0_2px_8px_rgba(0,0,0,0.12)] z-40 backdrop-blur-[20px] animate-[fadeUp_0.5s_cubic-bezier(0.22,1,0.36,1)_0.1s_both]">
-        
-        <div className="flex items-center gap-1">
-           <div 
-             onClick={() => setActiveNav('Home')} 
-             className={`w-[56px] h-[52px] flex flex-col items-center justify-center gap-1 rounded-[16px] cursor-pointer transition-colors active:bg-white/5 ${activeNav === 'Home' ? 'text-brand-nav-text' : 'text-brand-nav-muted hover:bg-white/5'}`}
-           >
-             <Home className="w-[22px] h-[22px] transition-all" strokeWidth={activeNav === 'Home' ? 2.1 : 1.7} />
-             <span className="text-[10px] font-medium tracking-[0.2px] leading-none">Home</span>
-           </div>
-           
-           <div 
-             className="w-[56px] h-[52px] flex items-center justify-center cursor-pointer active:opacity-70 active:scale-95 transition-all" 
-             onClick={() => setShowAdd(true)}
-           >
-             <div className="w-[46px] h-[46px] rounded-[14px] bg-brand-nav-text flex items-center justify-center">
-               <Plus className="w-5 h-5 text-brand-nav-bg" strokeWidth={2.2} />
-             </div>
-           </div>
-        </div>
-      </div>
 
       {/* ITEM DETAIL VIEW */}
       <AnimatePresence>
@@ -428,13 +407,13 @@ export default function App() {
               initial={{ opacity: 0, y: "100%" }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              transition={{ type: "spring", damping: 24, stiffness: 220 }}
               className="fixed inset-x-0 bottom-0 z-[70] p-4 pt-16 pointer-events-none w-full max-w-[430px] mx-auto"
             >
-               <div className="w-full bg-brand-bg border border-brand-border rounded-[24px] p-6 pb-8 shadow-[0_8px_32px_rgba(0,0,0,0.12)] pointer-events-auto flex flex-col gap-4">
+               <div className="w-full bg-[#f0ede8] border border-[#e0ddd6] rounded-[24px] p-6 pb-8 shadow-[0_20px_40px_rgba(0,0,0,0.2)] pointer-events-auto flex flex-col gap-4">
                   <div className="flex justify-between items-center mb-2">
-                     <h3 className="font-serif text-3xl text-brand-text tracking-[-0.5px]">Add title</h3>
-                     <button onClick={() => !isLoading && setShowAdd(false)} className="text-brand-sub hover:bg-brand-surface active:bg-brand-surface cursor-pointer p-2 rounded-full transition-colors"><X size={20}/></button>
+                     <h3 className="font-serif text-[30px] leading-none text-[#1a1714] tracking-[-0.02em]">Add title</h3>
+                     <button onClick={() => !isLoading && setShowAdd(false)} className="text-[#a09890] hover:bg-black/5 active:bg-black/10 cursor-pointer p-2 -mr-2 rounded-full transition-colors"><X size={20}/></button>
                   </div>
                   
                   <div className="flex flex-col gap-3 relative">
@@ -444,22 +423,22 @@ export default function App() {
                         value={nameQuery}
                         onChange={e=>setNameQuery(e.target.value)}
                         onKeyDown={e=>e.key==='Enter' && !isLoading && nameQuery && handleAdd()}
-                        className="w-full bg-brand-white border border-brand-border rounded-xl py-3.5 px-4 text-brand-text outline-none focus:border-[#c5c2bb] placeholder:text-brand-sub text-[14px] shadow-sm"
+                        className="w-full bg-[#ffffff] border border-[#e0ddd6] rounded-[14px] py-[14px] px-4 text-[#1a1714] text-[14px] font-medium outline-none focus:border-[#c5c2bb] placeholder:text-[#a09890] shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
                      />
                      <input 
                         placeholder="Image URL (optional)" 
                         value={posterQuery}
                         onChange={e=>setPosterQuery(e.target.value)}
                         onKeyDown={e=>e.key==='Enter' && !isLoading && nameQuery && handleAdd()}
-                        className="w-full bg-brand-white border border-brand-border rounded-xl py-3.5 px-4 text-brand-text outline-none focus:border-[#c5c2bb] placeholder:text-brand-sub text-[14px] shadow-sm"
+                        className="w-full bg-[#ffffff] border border-[#e0ddd6] rounded-[14px] py-[14px] px-4 text-[#1a1714] text-[14px] font-medium outline-none focus:border-[#c5c2bb] placeholder:text-[#a09890] shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
                      />
                      
-                     {statusText && <div className="text-brand-sub text-[13px]">{statusText}</div>}
+                     {statusText && <div className="text-[13px] text-[#a09890] font-medium px-1">{statusText}</div>}
 
                      <button 
                         disabled={!nameQuery || isLoading}
                         onClick={handleAdd}
-                        className="w-full mt-2 bg-brand-accent text-brand-white font-medium py-3.5 rounded-xl hover:opacity-90 disabled:opacity-50 text-[14px] flex items-center justify-center cursor-pointer transition-opacity"
+                        className="w-full mt-2 bg-[#1a1714] text-white font-semibold py-[14px] rounded-[14px] shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:opacity-90 disabled:opacity-50 text-[14px] flex items-center justify-center cursor-pointer transition-opacity"
                      >
                         {isLoading ? 'Adding...' : 'Add to watchlist'}
                      </button>
@@ -498,35 +477,49 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
   return (
     <div 
        onClick={onClick} 
-       className="bg-white rounded-[14px] flex items-center gap-3 p-[10px_14px_10px_10px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)] hover:-translate-y-[1px] cursor-pointer transition-all animate-[fadeUp_0.3s_ease_both]"
+       className="bg-white rounded-[16px] flex items-center gap-[14px] p-[12px_16px_12px_12px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.10)] hover:-translate-y-[1px] cursor-pointer transition-all animate-[fadeUp_0.3s_ease_both]"
        style={{ animationDelay: `${index * 0.04 + 0.04}s` }}
     >
-       <div className="w-[48px] h-[64px] rounded-[8px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-xl overflow-hidden">
+       <div className="w-[60px] h-[84px] rounded-[10px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-2xl overflow-hidden shadow-sm border border-brand-border/40">
           {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (item.type === 'movie' ? '🍿' : '📺')}
        </div>
        
-       <div className="flex-1 min-w-0 flex flex-col justify-center">
-         <div className="text-[14px] font-semibold mb-[3px] truncate text-[#1a1714] tracking-[-0.01em]">{item.title}</div>
-         <div className="text-[11px] text-[#a09890] flex items-center gap-[5px] truncate mt-0.5">
-            <span className="text-[10px] font-medium text-[#7a7068] bg-[#f0ede8] rounded-[4px] px-[6px] py-[1px]">{item.type === 'movie' ? 'Movie' : 'Series'}</span>
-            <div className="w-[3px] h-[3px] rounded-full bg-[#c8c0b8] shrink-0" />
-            <span className="truncate">{item.year || 'Unknown'}</span>
+       <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
+         <div className="text-[15px] leading-[1.3] font-semibold mb-1.5 text-[#1a1714] tracking-tight line-clamp-2 pr-2">{item.title}</div>
+         
+         <div className="flex flex-col gap-1">
+            <div className="text-[12px] text-[#7a7068] font-medium flex items-center gap-1.5 truncate">
+               <span>{item.year || 'Unknown'}</span>
+               <div className="w-[3px] h-[3px] rounded-full bg-[#d0cac3] shrink-0" />
+               <span className="text-[#a09890] capitalize">{item.type}</span>
+            </div>
+
             {item.genre && (
-              <>
-                 <div className="w-[3px] h-[3px] rounded-full bg-[#c8c0b8] shrink-0" />
+              <div className="text-[11.5px] text-[#a09890] truncate flex items-center gap-1.5">
                  <span className="truncate">{item.genre.split(',')[0].trim()}</span>
-              </>
+                 {item.rating && (
+                   <>
+                     <div className="w-[3px] h-[3px] rounded-full bg-[#d0cac3] shrink-0" />
+                     <span className="flex items-center gap-0.5 shrink-0"><Star size={10} className="fill-[#f57f17] text-[#f57f17]" /> {item.rating}</span>
+                   </>
+                 )}
+              </div>
+            )}
+            {!item.genre && item.rating && (
+              <div className="text-[11.5px] text-[#a09890] truncate flex items-center gap-1.5">
+                 <span className="flex items-center gap-0.5 shrink-0"><Star size={10} className="fill-[#f57f17] text-[#f57f17]" /> {item.rating}</span>
+              </div>
             )}
          </div>
        </div>
 
-       <div className="flex shrink-0">
+       <div className="flex shrink-0 ml-1">
          {isWatching ? (
-            <button className="text-[11px] font-semibold tracking-[0.01em] px-3 py-[5px] rounded-[20px] bg-[#e6f4ea] text-[#2e7d32] border-none cursor-pointer">Watching</button>
+            <button className="text-[11px] font-bold tracking-[0.02em] px-3.5 py-[6px] rounded-[20px] bg-[#e6f4ea] text-[#2e7d32] border-none cursor-pointer uppercase">Watching</button>
          ) : isCompleted ? (
-            <button className="text-[11px] font-semibold tracking-[0.01em] px-3 py-[5px] rounded-[20px] bg-[#ede7f6] text-[#6a1bdb] border-none cursor-pointer">Done</button>
+            <button className="text-[11px] font-bold tracking-[0.02em] px-3.5 py-[6px] rounded-[20px] bg-[#ede7f6] text-[#6a1bdb] border-none cursor-pointer uppercase">Done</button>
          ) : (
-            <button className="text-[11px] font-semibold tracking-[0.01em] px-3 py-[5px] rounded-[20px] bg-[#fef3e2] text-[#d4840a] hover:bg-[#fde6b8] transition-colors border-none cursor-pointer">Plan</button>
+            <button className="text-[11px] font-bold tracking-[0.02em] px-3.5 py-[6px] rounded-[20px] bg-[#fef3e2] text-[#d4840a] hover:bg-[#fde6b8] transition-colors border-none cursor-pointer uppercase">Plan</button>
          )}
        </div>
     </div>
@@ -635,13 +628,14 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
 
 function ListCardSkeleton() {
   return (
-    <div className="bg-white rounded-[14px] flex items-center gap-3 p-[10px_14px_10px_10px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] animate-pulse">
-       <div className="w-[48px] h-[64px] rounded-[8px] bg-[#e0dbd4] shrink-0" />
+    <div className="bg-white rounded-[16px] flex items-center gap-[14px] p-[12px_16px_12px_12px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] animate-pulse">
+       <div className="w-[60px] h-[84px] rounded-[10px] bg-[#e0dbd4] shrink-0" />
        <div className="flex-1 flex flex-col justify-center gap-2 py-1">
-         <div className="h-[12px] bg-[#e0dbd4] rounded-full w-3/4" />
-         <div className="h-[10px] bg-[#e0dbd4]/70 rounded-full w-1/2" />
+         <div className="h-[14px] bg-[#e0dbd4] rounded-[4px] w-[85%] mb-1" />
+         <div className="h-[10px] bg-[#e0dbd4]/70 rounded-[4px] w-[45%]" />
+         <div className="h-[10px] bg-[#e0dbd4]/50 rounded-[4px] w-[60%]" />
        </div>
-       <div className="w-16 h-[22px] rounded-[20px] bg-[#e0dbd4]/60 shrink-0" />
+       <div className="w-[68px] h-[26px] rounded-[20px] bg-[#e0dbd4]/60 shrink-0 ml-1" />
     </div>
   )
 }
