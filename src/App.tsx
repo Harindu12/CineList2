@@ -1,7 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download } from 'lucide-react';
+import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud, LogIn } from 'lucide-react';
+
+import { auth, db } from './firebase';
+import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 const STORAGE_KEY = 'cinelist_v1';
 
@@ -21,13 +25,12 @@ interface TitleItem {
   poster?: string;
   status?: TitleStatus;
   progress?: number;
+  userId?: string;
 }
 
 export default function App() {
-  const [items, setItems] = useState<TitleItem[]>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : [];
-  });
+  const [items, setItems] = useState<TitleItem[]>([]);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -37,13 +40,49 @@ export default function App() {
   const [statusText, setStatusText] = useState('');
   const [filter, setFilter] = useState('All');
   const [activeNav, setActiveNav] = useState('Home');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items]);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setItems([]);
+      return;
+    }
+
+    const sub = onSnapshot(collection(db, 'users', user.uid, 'titles'), (snapshot) => {
+      const fbItems: TitleItem[] = [];
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        fbItems.push({
+          ...data,
+          id: parseInt(doc.id, 10), // We still need id as a property if we use it, otherwise use doc.id
+        } as TitleItem);
+      });
+      // Sort by creation time (id) descending
+      fbItems.sort((a, b) => b.id - a.id);
+      setItems(fbItems);
+    });
+    
+    return () => sub();
+  }, [user]);
+
+  const handleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch (e: any) {
+      console.error(e.message);
+    }
+  };
 
   const handleAdd = async () => {
-    if (!nameQuery.trim()) return;
+    if (!nameQuery.trim() || !user) return;
 
     setIsLoading(true);
     setStatusText('Adding...');
@@ -84,22 +123,28 @@ export default function App() {
         return;
       }
 
+      const id = Date.now();
       const newItem: TitleItem = {
-        id: Date.now(),
+        id,
         title: title,
         type: info.type === 'tv' ? 'tv' : 'movie',
         year: info.year,
-        director: info.director,
-        genre: info.genre,
-        rating: info.rating,
-        cast: info.cast,
-        synopsis: info.synopsis,
+        director: info.director || '',
+        genre: info.genre || '',
+        rating: info.rating || '',
+        cast: info.cast || [],
+        synopsis: info.synopsis || '',
         status: 'plan',
         progress: 0,
-        poster: posterQuery.trim() || undefined
+        userId: user.uid,
       };
+      
+      if (posterQuery.trim()) {
+        newItem.poster = posterQuery.trim();
+      }
 
-      setItems(prev => [newItem, ...prev]);
+      await setDoc(doc(db, 'users', user.uid, 'titles', id.toString()), newItem);
+      
       setNameQuery('');
       setPosterQuery('');
       setShowAdd(false);
@@ -112,15 +157,21 @@ export default function App() {
         return;
       }
 
+      const id = Date.now();
       const newItem: TitleItem = {
-        id: Date.now(),
+        id,
         title: nameQuery,
         type: 'movie',
         status: 'plan',
         progress: 0,
-        poster: posterQuery.trim() || undefined
+        userId: user.uid,
       };
-      setItems(prev => [newItem, ...prev]);
+      if (posterQuery.trim()) {
+         newItem.poster = posterQuery.trim();
+      }
+      
+      await setDoc(doc(db, 'users', user.uid, 'titles', id.toString()), newItem);
+      
       setNameQuery('');
       setPosterQuery('');
       setShowAdd(false);
@@ -130,12 +181,14 @@ export default function App() {
     }
   };
 
-  const updateItem = (id: number, updates: Partial<TitleItem>) => {
-    setItems(items.map(i => i.id === id ? { ...i, ...updates } : i));
+  const updateItem = async (id: number, updates: Partial<TitleItem>) => {
+    if (!user) return;
+    await updateDoc(doc(db, 'users', user.uid, 'titles', id.toString()), updates);
   };
 
-  const removeItem = (id: number) => {
-    setItems(items.filter(i => i.id !== id));
+  const removeItem = async (id: number) => {
+    if (!user) return;
+    await deleteDoc(doc(db, 'users', user.uid, 'titles', id.toString()));
   };
 
   // Filtering
@@ -149,8 +202,9 @@ export default function App() {
      return filtered;
   }, [items, filter]);
 
+  // Export from Firestore just to match schema
   const handleExport = () => {
-    const dataStr = localStorage.getItem(STORAGE_KEY) || '[]';
+    const dataStr = JSON.stringify(items);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const a = document.createElement('a');
@@ -162,6 +216,37 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  // Import into Cloud Storage
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const text = ev.target?.result;
+        if (typeof text !== 'string') return;
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) {
+          // Push to cloud db
+          for (let item of parsed) {
+            const tempId = item.id || Date.now();
+            await setDoc(doc(db, 'users', user.uid, 'titles', tempId.toString()), {
+              ...item,
+              userId: user.uid, // ensure strict linkage
+              id: tempId
+            });
+          }
+          alert(`Successfully imported ${parsed.length} titles to your cloud database!`);
+        }
+      } catch (err: any) {
+        alert("Failed to import. Make sure it's a valid JSON export.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const recentlyAdded = [...items].sort((a, b) => b.id - a.id).slice(0, 5);
   const watchingItems = items.filter(i => i.status === 'watching');
   const planItems = items.filter(i => i.status === 'plan' || !i.status);
@@ -169,21 +254,51 @@ export default function App() {
 
   const selectedItem = items.find(i => i.id === selectedId);
 
+  // NOT LOGGED IN STATE
+  if (!user) {
+     return (
+        <div className="relative min-h-screen bg-brand-bg w-full max-w-[430px] mx-auto flex flex-col items-center justify-center p-8 font-sans">
+           <div className="font-serif text-[42px] tracking-[-0.5px] leading-none text-brand-text mb-2">
+              Watch<em className="italic text-brand-sub ml-0.5">list</em>
+           </div>
+           <p className="text-brand-sub text-[14px] text-center mb-10">Sign in to sync your watchlist across all your devices securely in the cloud.</p>
+           
+           <button 
+              onClick={handleLogin}
+              className="bg-brand-text text-brand-bg px-8 py-3.5 rounded-full font-medium active:scale-95 transition-transform flex items-center gap-2 shadow-sm cursor-pointer"
+           >
+              <LogIn size={18} /> Continue with Google
+           </button>
+        </div>
+     );
+  }
+
   return (
     <div className="relative min-h-screen bg-brand-bg w-full max-w-[430px] mx-auto pb-24 overflow-x-hidden font-sans no-scrollbar">
-      
+      <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
+
       {/* HEADER */}
       <div className="pt-[58px] px-6 flex items-start justify-between">
         <div className="font-serif text-[28px] tracking-[-0.5px] leading-none text-brand-text">
            Watch<em className="italic text-brand-sub ml-0.5">list</em>
         </div>
-        <button 
-           onClick={handleExport}
-           className="w-9 h-9 rounded-full border border-brand-border bg-brand-white flex items-center justify-center cursor-pointer active:scale-95 active:opacity-70 transition-all shrink-0 mt-[2px] text-brand-sub hover:text-brand-text hover:border-[#c5c2bb]"
-           title="Export Watchlist Data"
-        >
-           <Download size={14} strokeWidth={2.2} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+             onClick={() => fileInputRef.current?.click()}
+             className="h-9 px-3 rounded-full border border-brand-border bg-brand-white flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all mt-[2px] text-brand-sub hover:text-brand-text hover:border-[#c5c2bb]"
+             title="Import Watchlist Data"
+          >
+             <UploadCloud size={14} strokeWidth={2.2} />
+             <span className="text-[11px] font-medium tracking-[0.2px] uppercase">Import</span>
+          </button>
+          <button 
+             onClick={handleExport}
+             className="w-9 h-9 rounded-full border border-brand-border bg-brand-white flex items-center justify-center cursor-pointer active:scale-95 transition-all mt-[2px] text-brand-sub hover:text-brand-text hover:border-[#c5c2bb]"
+             title="Export Cloud Data"
+          >
+             <Download size={14} strokeWidth={2.2} />
+          </button>
+        </div>
       </div>
 
       {/* SUMMARY */}
@@ -232,8 +347,8 @@ export default function App() {
          <div className="animate-in fade-in duration-300 pb-10">
             {recentlyAdded.length > 0 && (
               <>
-                <div className="pt-6 px-6 pb-2.5 text-[11px] font-medium tracking-[1px] uppercase text-brand-sub">Recently added</div>
-                <div className="flex gap-3 px-6 overflow-x-auto no-scrollbar">
+                <div className="pt-6 px-6 pb-2.5 text-[11px] font-semibold tracking-[0.08em] uppercase text-[#b0a89e]">Recently added</div>
+                <div className="flex gap-3 px-6 overflow-x-auto no-scrollbar py-2 -my-2">
                   {recentlyAdded.map((item, i) => (
                     <PosterCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
                   ))}
@@ -278,7 +393,7 @@ export default function App() {
                     <List size={24} />
                   </div>
                   <h3 className="text-xl font-serif text-brand-text mb-2 tracking-[-0.5px]">Your list is empty</h3>
-                  <p className="text-brand-sub text-[13px] max-w-[240px]">Tap the plus icon above or use the search bar to add titles.</p>
+                  <p className="text-brand-sub text-[13px] max-w-[240px]">Tap the plus icon below or use the search bar to add titles.</p>
                </div>
             )}
          </div>
@@ -326,7 +441,7 @@ export default function App() {
       <AnimatePresence>
         {showAdd && (
           <>
-            <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => !isLoading && setShowAdd(false)} className="fixed inset-0 bg-brand-bg/80 backdrop-blur-sm z-[60] w-full max-w-[430px] mx-auto" />
+            <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => !isLoading && setShowAdd(false)} className="fixed inset-0 bg-[#1a1917]/30 backdrop-blur-sm z-[60] w-full max-w-[430px] mx-auto" />
             <motion.div 
               initial={{ opacity: 0, y: "100%" }}
               animate={{ opacity: 1, y: 0 }}
@@ -334,7 +449,7 @@ export default function App() {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed inset-x-0 bottom-0 z-[70] p-4 pt-16 pointer-events-none w-full max-w-[430px] mx-auto"
             >
-               <div className="w-full bg-brand-white border border-brand-border rounded-[24px] p-6 pb-8 shadow-[0_8px_32px_rgba(0,0,0,0.12)] pointer-events-auto flex flex-col gap-4">
+               <div className="w-full bg-brand-bg border border-brand-border rounded-[24px] p-6 pb-8 shadow-[0_8px_32px_rgba(0,0,0,0.12)] pointer-events-auto flex flex-col gap-4">
                   <div className="flex justify-between items-center mb-2">
                      <h3 className="font-serif text-3xl text-brand-text tracking-[-0.5px]">Add title</h3>
                      <button onClick={() => !isLoading && setShowAdd(false)} className="text-brand-sub hover:bg-brand-surface active:bg-brand-surface cursor-pointer p-2 rounded-full transition-colors"><X size={20}/></button>
@@ -347,14 +462,14 @@ export default function App() {
                         value={nameQuery}
                         onChange={e=>setNameQuery(e.target.value)}
                         onKeyDown={e=>e.key==='Enter' && !isLoading && nameQuery && handleAdd()}
-                        className="w-full bg-brand-bg border border-brand-border rounded-xl py-3.5 px-4 text-brand-text outline-none focus:border-[#c5c2bb] placeholder:text-brand-sub text-[14px]"
+                        className="w-full bg-brand-white border border-brand-border rounded-xl py-3.5 px-4 text-brand-text outline-none focus:border-[#c5c2bb] placeholder:text-brand-sub text-[14px] shadow-sm"
                      />
                      <input 
                         placeholder="Image URL (optional)" 
                         value={posterQuery}
                         onChange={e=>setPosterQuery(e.target.value)}
                         onKeyDown={e=>e.key==='Enter' && !isLoading && nameQuery && handleAdd()}
-                        className="w-full bg-brand-bg border border-brand-border rounded-xl py-3.5 px-4 text-brand-text outline-none focus:border-[#c5c2bb] placeholder:text-brand-sub text-[14px]"
+                        className="w-full bg-brand-white border border-brand-border rounded-xl py-3.5 px-4 text-brand-text outline-none focus:border-[#c5c2bb] placeholder:text-brand-sub text-[14px] shadow-sm"
                      />
                      
                      {statusText && <div className="text-brand-sub text-[13px]">{statusText}</div>}
@@ -382,14 +497,14 @@ function PosterCard({ item, index, onClick }: { item: TitleItem, index: number, 
   return (
      <div 
        onClick={onClick} 
-       className="shrink-0 w-[110px] cursor-pointer active:opacity-70 transition-opacity animate-[fadeUp_0.35s_ease_both]"
+       className="shrink-0 w-[110px] cursor-pointer active:opacity-70 hover:-translate-y-1 transition-all animate-[fadeUp_0.35s_ease_both]"
        style={{ animationDelay: `${index * 0.05 + 0.05}s` }}
      >
-        <div className="w-[110px] h-[155px] rounded-[10px] bg-brand-surface border border-brand-border flex items-center justify-center text-[36px] mb-2 overflow-hidden shadow-sm">
+        <div className="w-[110px] h-[155px] rounded-[10px] bg-[#e0dbd4] border border-brand-border/40 flex items-center justify-center text-[36px] mb-2 overflow-hidden shadow-sm">
           {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (item.type === 'movie' ? '🎬' : '📺')}
         </div>
-        <div className="text-[12px] font-medium text-brand-text break-words line-clamp-1 whitespace-nowrap overflow-hidden text-ellipsis mb-0.5">{item.title}</div>
-        <div className="text-[11px] text-brand-sub">{item.year || 'Unknown'} · {item.type === 'movie' ? 'Movie' : 'Series'}</div>
+        <div className="text-[12px] font-semibold text-brand-text break-words line-clamp-1 whitespace-nowrap overflow-hidden text-ellipsis mb-0.5">{item.title}</div>
+        <div className="text-[11px] text-[#a09890]">{item.year || 'Unknown'} · {item.type === 'movie' ? 'Movie' : 'Series'}</div>
      </div>
   );
 }
@@ -443,7 +558,7 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
   return (
     <motion.div initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} transition={{type: "spring", damping: 25, stiffness: 220}} className="fixed inset-0 z-50 bg-brand-bg flex flex-col overflow-y-auto no-scrollbar w-full max-w-[430px] mx-auto overflow-x-hidden">
       
-      <div className="relative w-full aspect-[3/4] max-h-[45vh] shrink-0 bg-brand-surface shadow-sm">
+      <div className="relative w-full aspect-[3/4] max-h-[45vh] shrink-0 bg-[#e0dbd4] shadow-sm">
         {item.poster ? (
            <img src={item.poster} className="w-full h-full object-cover" />
         ) : (
@@ -463,53 +578,45 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
 
       <div className="relative z-10 flex-1 bg-brand-bg rounded-t-[20px] -mt-5 px-6 pt-8 pb-32 flex flex-col shadow-[0_-4px_16px_rgba(0,0,0,0.05)] border-t border-brand-border">
         <div className="flex items-center gap-2.5 mb-2 flex-wrap">
-           <span className="text-[11px] font-medium text-brand-sub border border-brand-border px-2 py-0.5 rounded-md bg-brand-white">{item.type === 'movie' ? 'Movie' : 'Series'}</span>
-           {item.year && <span className="text-[12px] text-brand-sub">{item.year}</span>}
-           {item.rating && <span className="text-[12px] font-medium text-brand-text flex items-center gap-1 ml-auto"><Star size={12} className="fill-[#f57f17] stroke-none" /> {item.rating}</span>}
+           <span className="text-[11px] font-semibold text-[#7a7068] bg-[#f0ede8] border border-brand-border/50 px-2 py-0.5 rounded-md">{item.type === 'movie' ? 'Movie' : 'Series'}</span>
+           {item.year && <span className="text-[12px] text-[#a09890]">{item.year}</span>}
+           {item.rating && <span className="text-[12px] font-semibold text-brand-text flex items-center gap-1 ml-auto"><Star size={12} className="fill-[#f57f17] stroke-none" /> {item.rating}</span>}
         </div>
 
-        <h1 className="font-serif text-[42px] leading-[0.95] text-brand-text mb-4 tracking-[-0.5px]">{item.title}</h1>
+        <h1 className="font-serif text-[42px] leading-[0.95] text-[#1a1714] mb-4 tracking-[-0.5px]">{item.title}</h1>
         
         {item.genre && (
           <div className="flex gap-1.5 flex-wrap mb-5">
              {item.genre.split(',').map(g => g.trim()).map(g => (
-                <span key={g} className="text-[11px] font-medium px-2 py-1 rounded-[6px] bg-brand-surface text-brand-sub border border-brand-border/50">{g}</span>
+                <span key={g} className="text-[11px] font-semibold px-2 py-1 rounded-[6px] bg-[#fff] shadow-sm text-[#7a7068] border border-brand-border/30">{g}</span>
              ))}
           </div>
         )}
 
-        <p className="text-[14px] text-brand-sub font-sans leading-[1.6] mb-8">{item.synopsis || "No synopsis available for this title."}</p>
+        <p className="text-[14px] text-[#7a7068] font-sans leading-[1.6] mb-8">{item.synopsis || "No synopsis available for this title."}</p>
 
         {/* Status Actions */}
-        <div className="flex flex-col gap-2 bg-brand-white rounded-[16px] p-1.5 border border-brand-border shadow-sm mb-6">
+        <div className="flex flex-col gap-2 bg-brand-white rounded-[16px] p-1.5 border border-brand-border shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-6">
            <div className="flex gap-1 w-full">
               <button 
                 onClick={() => onUpdate({status: 'plan'})} 
-                className={`flex-1 py-3 rounded-[12px] text-[12px] font-medium transition-colors cursor-pointer w-full ${item.status === 'plan' || !item.status ? 'bg-[#fff8e1] text-[#f57f17] shadow-sm' : 'text-brand-sub hover:bg-brand-surface'}`}
+                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-colors cursor-pointer w-full ${item.status === 'plan' || !item.status ? 'bg-[#fef3e2] text-[#d4840a] shadow-sm tracking-[0.01em]' : 'text-[#a09890] hover:bg-brand-surface'}`}
               >
                 Plan
               </button>
               <button 
                 onClick={() => onUpdate({status: 'watching'})} 
-                className={`flex-1 py-3 rounded-[12px] text-[12px] font-medium transition-colors cursor-pointer w-full ${item.status === 'watching' ? 'bg-[#e8f5e9] text-[#2e7d32] shadow-sm' : 'text-brand-sub hover:bg-brand-surface'}`}
+                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-colors cursor-pointer w-full ${item.status === 'watching' ? 'bg-[#e6f4ea] text-[#2e7d32] shadow-sm tracking-[0.01em]' : 'text-[#a09890] hover:bg-brand-surface'}`}
               >
                 Watching
               </button>
               <button 
                 onClick={() => onUpdate({status: 'completed'})} 
-                className={`flex-1 py-3 rounded-[12px] text-[12px] font-medium transition-colors cursor-pointer w-full ${item.status === 'completed' ? 'bg-brand-surface text-brand-text shadow-sm' : 'text-brand-sub hover:bg-brand-surface'}`}
+                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-colors cursor-pointer w-full ${item.status === 'completed' ? 'bg-[#ede7f6] text-[#6a1bdb] shadow-sm tracking-[0.01em]' : 'text-[#a09890] hover:bg-brand-surface'}`}
               >
                 Done
               </button>
            </div>
-           
-           {item.status === 'watching' && (
-             <motion.div initial={{height:0, opacity:0}} animate={{height:'auto', opacity:1}} className="px-3 pt-2 pb-1.5 flex items-center gap-4">
-               <span className="text-[11px] font-medium text-brand-sub w-14">Progress</span>
-               <input type="range" min="0" max="100" value={item.progress || 0} onChange={e => onUpdate({progress: parseInt(e.target.value)})} className="flex-1 accent-[#1a1917] h-[3px] bg-brand-surface rounded-full outline-none cursor-pointer" />
-               <span className="text-[12px] font-medium text-brand-text w-8 text-right font-sans">{item.progress || 0}%</span>
-             </motion.div>
-           )}
         </div>
 
         <button onClick={() => { onRemove(item.id); onClose(); }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[#d32f2f] hover:bg-[#d32f2f]/10 transition-colors mt-auto font-medium text-[13px] cursor-pointer">
@@ -528,12 +635,12 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
                  <input value={tempPoster} onChange={e=>setTempPoster(e.target.value)} className="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-brand-text text-[14px] font-sans outline-none focus:border-[#c5c2bb] placeholder:text-brand-sub" placeholder="https:// images..." />
                  
                  <div className="flex gap-2">
-                    <button onClick={() => { onUpdate({poster: tempPoster}); setIsEditingPoster(false); }} className="flex-1 bg-brand-accent text-brand-white font-medium rounded-xl py-3 text-[14px] active:scale-95 transition-transform cursor-pointer">Save changes</button>
+                    <button onClick={() => { onUpdate({poster: tempPoster}); setIsEditingPoster(false); }} className="flex-1 bg-brand-accent text-brand-white font-medium rounded-xl py-3 text-[14px] active:scale-95 transition-transform cursor-pointer">Save</button>
                     <button onClick={() => setIsEditingPoster(false)} className="bg-brand-surface text-brand-text font-medium rounded-xl px-5 py-3 text-[14px] active:scale-95 transition-transform cursor-pointer">Cancel</button>
                  </div>
                  
                  {item.poster && (
-                   <button onClick={() => { setTempPoster(''); onUpdate({poster: ''}); setIsEditingPoster(false); }} className="mt-1 text-[13px] text-[#d32f2f] py-2 border border-[#d32f2f]/20 hover:bg-[#d32f2f]/5 rounded-lg font-medium cursor-pointer transition-colors w-full">Remove Poster image</button>
+                   <button onClick={() => { setTempPoster(''); onUpdate({poster: ''}); setIsEditingPoster(false); }} className="mt-1 text-[13px] text-[#d32f2f] py-2 border border-[#d32f2f]/20 hover:bg-[#d32f2f]/5 rounded-[12px] font-medium cursor-pointer transition-colors w-full">Remove Image</button>
                  )}
               </div>
           </motion.div>

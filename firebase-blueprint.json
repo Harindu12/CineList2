@@ -1,0 +1,32 @@
+{
+  "entities": {
+    "Title": {
+      "title": "Title",
+      "description": "A movie or TV series on the user's watchlist.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["movie", "tv"] },
+        "year": { "type": "string" },
+        "director": { "type": "string" },
+        "genre": { "type": "string" },
+        "rating": { "type": "string" },
+        "cast": { "type": "array", "items": { "type": "string" } },
+        "synopsis": { "type": "string" },
+        "poster": { "type": "string" },
+        "status": { "type": "string", "enum": ["watching", "plan", "completed"] },
+        "progress": { "type": "number" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["title", "type", "status", "userId", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}/titles/{titleId}": {
+      "schema": { "$ref": "#/entities/Title" },
+      "description": "User's personal watchlist titles."
+    }
+  }
+}
