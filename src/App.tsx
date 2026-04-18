@@ -220,7 +220,6 @@ export default function App() {
     e.target.value = '';
   };
 
-  const recentlyAdded = [...items].sort((a, b) => b.id - a.id).slice(0, 5);
   const watchingItems = items.filter(i => i.status === 'watching');
   const planItems = items.filter(i => i.status === 'plan' || !i.status);
   const completedItems = items.filter(i => i.status === 'completed');
@@ -290,19 +289,12 @@ export default function App() {
       {isInitializing ? (
          <div className="animate-in fade-in duration-300 pb-10">
             {filter === 'All' ? (
-              <>
-                <div className="px-[24px] pb-4 flex items-center"><div className="h-[10px] w-24 bg-brand-border/60 rounded-full animate-pulse" /></div>
-                <div className="flex gap-3 px-[24px] overflow-x-hidden pb-6 flex-nowrap -ml-2 pl-[32px]">
-                  {[1, 2, 3, 4].map(i => <PosterCardSkeleton key={i} />)}
+              <div className="bg-[#e8e5df] min-h-screen pt-2 rounded-t-[24px]">
+                <div className="pt-8 px-[24px] pb-4 flex items-center"><div className="h-[10px] w-20 bg-[#d0cac3] rounded-full animate-pulse" /></div>
+                <div className="px-[24px] flex flex-col gap-[10px]">
+                  {[1, 2, 3, 4, 5].map(i => <ListCardSkeleton key={i} />)}
                 </div>
-                
-                <div className="bg-[#e8e5df] min-h-screen pt-2 rounded-t-[24px]">
-                  <div className="pt-8 px-[24px] pb-4 flex items-center"><div className="h-[10px] w-20 bg-[#d0cac3] rounded-full animate-pulse" /></div>
-                  <div className="px-[24px] flex flex-col gap-[10px]">
-                    {[1, 2, 3].map(i => <ListCardSkeleton key={i} />)}
-                  </div>
-                </div>
-              </>
+              </div>
             ) : (
               <div className="bg-[#e8e5df] min-h-screen pt-2 rounded-t-[24px]">
                 <div className="pt-8 px-[24px] pb-4 flex items-center"><div className="h-[10px] w-24 bg-[#d0cac3] rounded-full animate-pulse" /></div>
@@ -326,21 +318,10 @@ export default function App() {
       ) : (
          // Main All View
          <div className="animate-in fade-in duration-300 pb-10 mt-2">
-            {recentlyAdded.length > 0 && (
-              <div className="mb-0">
-                <div className="flex gap-3 px-[24px] overflow-x-auto no-scrollbar pb-0 snap-x -ml-2 pl-[32px]">
-                  {recentlyAdded.map((item, i) => (
-                    <PosterCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
-                  ))}
-                  <div className="w-[12px] shrink-0" />
-                </div>
-              </div>
-            )}
-
-            <div className="bg-[#e8e5df] min-h-screen pb-20 pt-[24px] mt-[24px] rounded-t-[24px] shadow-[0_-4px_16px_rgba(0,0,0,0.02)]">
+            <div className="bg-[#e8e5df] min-h-screen pb-20 pt-[8px] rounded-t-[24px] shadow-[0_-4px_16px_rgba(0,0,0,0.02)]">
               {watchingItems.length > 0 && (
                  <div className="mb-[24px]">
-                   <div className="px-[24px] pb-[16px] pt-[0px] text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">Watching now</div>
+                   <div className="px-[24px] pb-[16px] pt-[24px] text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">Watching now</div>
                    <div className="px-[24px] flex flex-col gap-[10px]">
                      {watchingItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
                    </div>
@@ -503,22 +484,6 @@ export default function App() {
 
 // Sub-components
 
-function PosterCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void }) {
-  return (
-     <div 
-       onClick={onClick} 
-       className="shrink-0 w-[120px] cursor-pointer active:opacity-70 hover:-translate-y-1 transition-all animate-list-item"
-       style={{ animationDelay: `${index * 0.05 + 0.05}s` }}
-     >
-        <div className="w-[120px] h-[160px] rounded-[10px] bg-[#e0dbd4] border border-[#e0ddd6] flex items-center justify-center text-[36px] mb-2 overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] relative">
-          {item.poster ? <img src={item.poster} className="w-full h-full object-cover absolute inset-0" /> : (item.type === 'movie' ? '🎬' : '📺')}
-        </div>
-        <div className="text-[13px] font-semibold text-[#1a1917] break-words line-clamp-1 whitespace-nowrap overflow-hidden text-ellipsis mb-0.5 tracking-tight">{item.title}</div>
-        <div className="text-[11px] text-[#9b9890] capitalize">{item.year || 'Unknown'} · {item.type}</div>
-     </div>
-  );
-}
-
 function ListCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void }) {
   return (
     <div 
@@ -680,15 +645,5 @@ function ListCardSkeleton() {
        </div>
        <div className="w-[20px] h-[20px] rounded-full bg-[#e0dbd4]/60 flex items-center shrink-0 ml-1" />
     </div>
-  )
-}
-
-function PosterCardSkeleton() {
-  return (
-     <div className="shrink-0 w-[120px] animate-pulse">
-        <div className="w-[120px] h-[160px] rounded-[10px] bg-[#e0dbd4] mb-2" />
-        <div className="h-[10px] bg-[#e0dbd4] rounded-full w-5/6 mb-1.5" />
-        <div className="h-[8px] bg-[#e0dbd4]/70 rounded-full w-2/3" />
-     </div>
   )
 }
