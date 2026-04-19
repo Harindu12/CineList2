@@ -70,8 +70,8 @@ export default function App() {
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Find details for the movie or TV show: "${nameQuery}". Use the googleSearch tool to fetch accurate metadata. Return a raw JSON object only. Do NOT provide a poster URL.`,
-        tools: [{ googleSearch: {} }],
         config: {
+          tools: [{ googleSearch: {} }],
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -227,11 +227,11 @@ export default function App() {
   const selectedItem = items.find(i => i.id === selectedId);
 
   return (
-    <div className="relative min-h-screen bg-brand-bg w-full max-w-[430px] mx-auto pb-24 overflow-clip font-sans no-scrollbar">
+    <div className="relative h-[100dvh] bg-[#f0ede8] w-full max-w-[430px] mx-auto overflow-hidden font-sans flex flex-col">
       <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
 
       {/* HEADER - FLUSH WITH BACKGROUND */}
-      <div className="sticky top-0 z-40 bg-[#f0ede8]/95 backdrop-blur-xl pt-8 transition-all pb-0">
+      <div className="flex-shrink-0 pt-8 transition-all pb-0">
         
         {/* TOP ROW: TITLE & SETTINGS/ACTIONS */}
         <div className="px-[24px] flex items-center justify-between mb-4">
@@ -283,84 +283,16 @@ export default function App() {
         </div>
       </div>
 
-      <div className="relative z-10 pt-0">
+      <div className="flex-1 bg-[#e8e5df] rounded-t-[24px] shadow-[0_-4px_16px_rgba(0,0,0,0.02)] flex flex-col min-h-0 relative z-10 w-full mt-2">
       {activeView === 'home' ? (
       <>
-      {isInitializing ? (
-         <div className="animate-in fade-in duration-300 pb-10">
-            {filter === 'All' ? (
-              <div className="bg-[#e8e5df] min-h-screen pt-1 rounded-t-[24px]">
-                <div className="pt-6 px-[24px] pb-4 flex items-center"><div className="h-[10px] w-20 bg-[#d0cac3] rounded-full animate-pulse" /></div>
-                <div className="px-[24px] flex flex-col gap-[10px]">
-                  {[1, 2, 3, 4, 5].map(i => <ListCardSkeleton key={i} />)}
-                </div>
-              </div>
-            ) : (
-              <div className="bg-[#e8e5df] min-h-screen pt-2 rounded-t-[24px]">
-                <div className="pt-8 px-[24px] pb-4 flex items-center"><div className="h-[10px] w-24 bg-[#d0cac3] rounded-full animate-pulse" /></div>
-                <div className="px-[24px] flex flex-col gap-[10px]">
-                  {[1, 2, 3, 4, 5].map(i => <ListCardSkeleton key={i} />)}
-                </div>
-              </div>
-            )}
+         <div className="px-[24px] pb-[14px] pt-[20px] text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9b9890] flex-shrink-0 z-10 bg-[#e8e5df] rounded-t-[24px]">
+            {filter === 'All' ? 'All Titles' : filter}
          </div>
-      ) : filter !== 'All' ? (
-         // Filtered View
-         <div className="animate-in fade-in duration-300 pb-10 bg-[#e8e5df] min-h-screen rounded-t-[24px] mt-1">
-            <div className="px-[24px] pb-[16px] pt-6 text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">{filter}</div>
-            <div className="px-[24px] flex flex-col gap-[10px]">
-              {filteredItems.map((item, i) => (
-                 <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
-              ))}
-              {filteredItems.length === 0 && <div className="text-center py-10 text-[#9b9890] text-sm font-medium">No titles found.</div>}
-            </div>
-         </div>
-      ) : (
-         // Main All View
-         <div className="animate-in fade-in duration-300 pb-10 mt-1">
-            <div className="bg-[#e8e5df] min-h-screen pb-20 pt-[6px] rounded-t-[24px] shadow-[0_-4px_16px_rgba(0,0,0,0.02)]">
-              {watchingItems.length > 0 && (
-                 <div className="mb-[24px]">
-                   <div className="px-[24px] pb-[16px] pt-4 text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">Watching now</div>
-                   <div className="px-[24px] flex flex-col gap-[10px]">
-                     {watchingItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
-                   </div>
-                 </div>
-              )}
-
-              {planItems.length > 0 && (
-                 <div className="mb-[24px]">
-                   <div className="px-[24px] pb-[16px] pt-[24px] text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">Plan to watch</div>
-                   <div className="px-[24px] flex flex-col gap-[10px]">
-                     {planItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
-                   </div>
-                 </div>
-              )}
-
-              {completedItems.length > 0 && (
-                 <div className="mb-[24px]">
-                   <div className="px-[24px] pb-[16px] pt-[24px] text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">Completed</div>
-                   <div className="px-[24px] flex flex-col gap-[10px]">
-                     {completedItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
-                   </div>
-                 </div>
-              )}
-
-              {items.length === 0 && (
-                 <div className="px-8 py-16 flex flex-col items-center text-center animate-in fade-in duration-500">
-                    <div className="w-[72px] h-[72px] bg-white rounded-full border border-[#e0ddd6] flex items-center justify-center mb-5 text-[#9b9890] shadow-sm">
-                      <List size={28} strokeWidth={1.5} />
-                    </div>
-                    <h3 className="text-[22px] font-serif text-[#1a1917] mb-2 tracking-[-0.02em]">Your list is empty</h3>
-                    <p className="text-[#9b9890] text-[14px] max-w-[240px] leading-[1.5] font-medium">Tap the plus icon below or use the search bar to add titles.</p>
-                 </div>
-              )}
-            </div>
-         </div>
-      )}
+         <StackingList items={isInitializing ? null : (filter === 'All' ? items : filteredItems)} isInitializing={isInitializing} onSelect={setSelectedId} />
       </>
       ) : (
-        <div className="animate-in fade-in duration-300 pb-10 px-[24px]">
+        <div className="flex-1 overflow-y-auto no-scrollbar pb-[110px] px-[24px] pt-4">
             <h2 className="font-serif text-[32px] tracking-[-0.03em] leading-none text-[#1a1917] mb-6 mt-4">Statistics</h2>
             
             <div className="grid grid-cols-2 gap-[10px]">
@@ -484,11 +416,123 @@ export default function App() {
 
 // Sub-components
 
-function ListCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void }) {
+function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] | null, isInitializing: boolean, onSelect: (id: number) => void }) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const [cardH, setCardH] = useState(120);
+
+  useEffect(() => {
+    if (!scrollerRef.current) return;
+    requestAnimationFrame(() => {
+       const firstCard = scrollerRef.current?.querySelector('.card-inner') as HTMLElement;
+       if (firstCard) setCardH(firstCard.offsetHeight);
+    });
+  }, [items]);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    const onScroll = () => {
+      if (typeof window === 'undefined') return;
+      window.requestAnimationFrame(() => {
+        const scrollTop = scroller.scrollTop;
+        const wraps = scroller.querySelectorAll('.card-wrap-sticky') as NodeListOf<HTMLElement>;
+        
+        wraps.forEach((wrap, i) => {
+          const card = wrap.querySelector('.card-inner') as HTMLElement;
+          if (!card) return;
+          
+          wrap.style.perspective = 'none'; // Clear 3D
+          
+          const stickyTop = 0; // Pure stacked flush to header
+          const naturalTop = i * (cardH + 10);
+          const passedBy = scrollTop - naturalTop + stickyTop;
+          
+          if (passedBy > 0) {
+             if (passedBy > cardH * 1.5) {
+                // Far off-screen: clamp transform and opacity to prevent micro-repainting calculation overhead
+                if (card.style.opacity !== '0') {
+                    card.style.transform = `translate3d(0, -32px, 0) scale(0.95)`;
+                    card.style.opacity = '0';
+                }
+             } else {
+                 // 1. Editorial Fade & Slide:
+                 // Use exponential easing out to make it silky smooth
+                 const rawProgress = Math.min(passedBy / cardH, 1);
+                 const easeProgress = 1 - Math.pow(1 - rawProgress, 3);
+                 
+                 const translateY = -(easeProgress * 28); // Gentle float up into the blur
+                 const scale = 1 - (easeProgress * 0.05); // Tiny shrink back into the Z plane
+                 // Opacity fades linearly against passedBy to disappear precisely
+                 const opacity = 1 - (passedBy / (cardH * 0.9));
+                 
+                 card.style.transform = `translate3d(0, ${translateY}px, 0) scale(${scale})`;
+                 card.style.opacity = Math.max(opacity, 0).toString();
+             }
+          } else {
+             // Idle natural scrolling state
+             card.style.transform = 'translate3d(0, 0, 0) scale(1)';
+             card.style.opacity = '1';
+          }
+        });
+      });
+    };
+
+    scroller.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => scroller.removeEventListener('scroll', onScroll);
+  }, [items, cardH]);
+
+  if (isInitializing) {
+     return (
+        <div ref={scrollerRef} className="flex-1 overflow-y-auto no-scrollbar px-[24px] pb-[110px] relative w-full pt-1">
+          <div className="pb-[40px]">
+            {[1,2,3,4,5].map((i, index) => (
+              <div key={i} className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: i + 1 }}>
+                 <div className="card-inner relative overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] rounded-[16px] bg-white border border-[#e0ddd6]/50" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
+                    <ListCardSkeleton />
+                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+     );
+  }
+
+  if (!items || items.length === 0) {
+     return (
+        <div className="flex-1 overflow-y-auto no-scrollbar px-[24px] pb-[110px] w-full">
+           <div className="py-16 flex flex-col items-center text-center animate-in fade-in duration-500">
+              <div className="w-[72px] h-[72px] bg-white rounded-full border border-[#e0ddd6] flex items-center justify-center mb-5 text-[#9b9890] shadow-sm">
+                <List size={28} strokeWidth={1.5} />
+              </div>
+              <h3 className="text-[22px] font-serif text-[#1a1917] mb-2 tracking-[-0.02em]">Your list is empty</h3>
+              <p className="text-[#9b9890] text-[14px] max-w-[240px] leading-[1.5] font-medium">Tap the plus icon below or use the search bar to add titles.</p>
+           </div>
+        </div>
+     );
+  }
+
+  return (
+    <div ref={scrollerRef} className="flex-1 overflow-y-auto no-scrollbar px-[24px] pb-[110px] relative w-full pt-1">
+      <div className="pb-[40px]">
+        {items.map((item, i) => (
+           <div key={item.id} className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: i + 1 }}>
+              <div className="card-inner relative overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] transition-shadow duration-300 rounded-[16px] bg-white cursor-pointer border border-[#e0ddd6]/50" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
+                 <ListCard item={item} index={i} onClick={() => onSelect(item.id)} />
+              </div>
+           </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ListCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void, key?: any }) {
   return (
     <div 
        onClick={onClick} 
-       className="bg-white rounded-[16px] flex items-center gap-[12px] p-[8px_16px_8px_8px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] cursor-pointer transition-all animate-list-item group"
+       className="flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full animate-list-item group"
        style={{ animationDelay: `${index * 0.03 + 0.02}s` }}
     >
        <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-xl overflow-hidden border border-[#e0ddd6] group-hover:-translate-y-0.5 transition-transform">
@@ -534,7 +578,7 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
   )
 }
 
-function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem; onClose: () => void; onUpdate: (updates: Partial<TitleItem>) => void; onRemove: (id: number) => void; }) {
+function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem; onClose: () => void; onUpdate: (updates: Partial<TitleItem>) => void; onRemove: (id: number) => void; key?: any; }) {
   const [isEditingPoster, setIsEditingPoster] = useState(false);
   const [tempPoster, setTempPoster] = useState(item.poster || '');
 
@@ -550,6 +594,9 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
              <span className="text-brand-sub uppercase tracking-[1px] text-[10px] font-semibold mt-2">No Poster</span>
            </div>
         )}
+
+        {/* Gradient Overlay for seamless transition */}
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#f0ede8] to-transparent pointer-events-none" />
 
         <button onClick={onClose} className="absolute top-6 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 z-10 cursor-pointer shadow-sm hover:bg-black/50 active:scale-95 transition-all">
            <X size={18} />
@@ -634,9 +681,9 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
   )
 }
 
-function ListCardSkeleton() {
+function ListCardSkeleton({ key }: { key?: any }) {
   return (
-    <div className="bg-white rounded-[16px] flex items-center gap-[12px] p-[8px_16px_8px_8px] shadow-[0_2px_8px_rgba(0,0,0,0.04)] animate-pulse">
+    <div className="flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full animate-pulse">
        <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0" />
        <div className="flex-1 flex flex-col justify-center gap-1.5 py-1">
          <div className="h-[14px] bg-[#e0dbd4] rounded-[4px] w-[85%] mb-1" />
