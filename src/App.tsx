@@ -269,15 +269,22 @@ export default function App() {
 
         {/* CAPSULE TABS */}
         <div className="flex items-center px-[24px] pb-4 hidden-scrollbar overflow-x-auto relative z-10 w-full">
-           <div className="flex items-center gap-2 w-full pr-4">
+           <div className="flex items-center gap-2 w-full pr-4 relative">
             {['All', 'Watching', 'Plan to Watch', 'Completed'].map((f) => (
-              <div 
+              <button 
                 key={f} 
                 onClick={() => setFilter(f)} 
-                className={`text-[13px] font-medium px-4 py-2 cursor-pointer whitespace-nowrap shrink-0 transition-all rounded-full ${filter === f ? 'bg-[#1a1917] text-white font-bold' : 'text-[#9b9890] bg-transparent hover:bg-black/5'}`}
+                className={`text-[13px] font-medium px-4 py-2 cursor-pointer whitespace-nowrap shrink-0 transition-colors relative z-10 outline-none ${filter === f ? 'text-white font-bold' : 'text-[#9b9890] hover:text-[#1a1917]'}`}
               >
+                {filter === f && (
+                   <motion.div 
+                     layoutId="activeFilter" 
+                     className="absolute inset-0 bg-[#1a1917] rounded-full -z-10"
+                     transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
+                   />
+                )}
                 {f}
-              </div>
+              </button>
             ))}
            </div>
         </div>
@@ -292,42 +299,83 @@ export default function App() {
          <StackingList items={isInitializing ? null : (filter === 'All' ? items : filteredItems)} isInitializing={isInitializing} onSelect={setSelectedId} />
       </>
       ) : (
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-[110px] px-[24px] pt-4">
-            <h2 className="font-serif text-[32px] tracking-[-0.03em] leading-none text-[#1a1917] mb-6 mt-4">Statistics</h2>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="flex-1 overflow-y-auto no-scrollbar pb-[110px] px-[24px] pt-8"
+        >
+            <motion.h2 
+               initial={{ opacity: 0, y: 15 }} 
+               animate={{ opacity: 1, y: 0 }} 
+               transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+               className="font-serif text-[42px] tracking-[-0.04em] leading-[0.9] text-[#1a1917] mb-[32px]"
+            >
+               Your<br/><em className="italic text-[#9b9890]">Overview</em>
+            </motion.h2>
             
-            <div className="grid grid-cols-2 gap-[10px]">
-               <div className="bg-white rounded-[16px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-brand-border/40">
-                  <div className="text-[32px] font-semibold text-[#1a1917] mb-0.5 leading-none">{items.length}</div>
-                  <div className="text-[12px] text-[#9b9890] font-medium">Total Titles</div>
-               </div>
-               <div className="bg-white rounded-[16px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-brand-border/40 flex flex-col justify-center">
-                  <div className="flex w-full h-[6px] rounded-full overflow-hidden mb-2 bg-[#f0ede8]">
-                    <div className="h-full bg-[#1a1917]" style={{ width: `${items.length ? (items.filter(i=>i.type==='movie').length / items.length) * 100 : 0}%` }} />
+            <div className="grid grid-cols-2 gap-[12px]">
+               {/* Card 1: Total Library */}
+               <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }} 
+                  animate={{ opacity: 1, scale: 1 }} 
+                  transition={{ delay: 0.1, type: "spring", stiffness: 200, damping: 20 }}
+                  className="bg-white/60 backdrop-blur-md rounded-[24px] p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-white/50 flex flex-col justify-between aspect-square col-span-1 hover:bg-white transition-colors duration-500 cursor-default"
+               >
+                  <div className="text-[11px] text-[#9b9890] font-bold tracking-[0.08em] uppercase">Library Size</div>
+                  <div className="font-serif text-[72px] leading-[0.8] tracking-[-0.05em] text-[#1a1917] mt-4">{items.length}</div>
+               </motion.div>
+
+               {/* Card 2: Split */}
+               <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }} 
+                  animate={{ opacity: 1, scale: 1 }} 
+                  transition={{ delay: 0.15, type: "spring", stiffness: 200, damping: 20 }}
+                  className="bg-[#1a1917] rounded-[24px] p-6 shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-[#302e2a] flex flex-col justify-between aspect-square col-span-1 text-white hover:scale-[1.02] transition-transform duration-500 cursor-default"
+               >
+                  <div className="text-[11px] text-[#858279] font-bold tracking-[0.08em] uppercase">Format</div>
+                  <div className="flex flex-col gap-4 mt-4">
+                     <div className="flex items-end justify-between">
+                        <div className="flex items-center gap-2"><span className="text-[16px] opacity-80">🎬</span> <span className="text-[22px] font-semibold leading-none">{items.filter(i=>i.type==='movie').length}</span></div>
+                        <div className="flex items-center gap-2"><span className="text-[22px] font-semibold leading-none">{items.filter(i=>i.type==='tv').length}</span> <span className="text-[16px] opacity-80">📺</span></div>
+                     </div>
+                     <div className="flex w-full h-[4px] rounded-full overflow-hidden bg-[#333]">
+                        <motion.div 
+                           initial={{ width: 0 }}
+                           animate={{ width: `${items.length ? (items.filter(i=>i.type==='movie').length / items.length) * 100 : 0}%` }}
+                           transition={{ delay: 0.4, duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                           className="h-full bg-white rounded-full" 
+                        />
+                     </div>
                   </div>
-                  <div className="flex justify-between text-[12px] font-medium">
-                     <span className="text-[#1a1917]">{items.filter(i=>i.type==='movie').length} <span className="text-[#9b9890]">Movies</span></span>
-                     <span className="text-[#1a1917]">{items.filter(i=>i.type==='tv').length} <span className="text-[#9b9890]">Series</span></span>
-                  </div>
-               </div>
+               </motion.div>
                
-               <div className="bg-white rounded-[16px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-brand-border/40 col-span-2">
-                  <div className="flex justify-between items-end mb-4 border-b border-[#f0ede8] pb-4">
-                     <div>
-                        <div className="text-[24px] font-semibold text-[#1a1917] leading-none mb-1">{items.filter(i=>i.status==='watching').length}</div>
-                        <div className="text-[12px] text-[#2e7d32] font-semibold bg-[#e6f4ea] px-2 py-0.5 rounded uppercase tracking-[0.04em]">Watching</div>
+               {/* Card 3: Matrix */}
+               <motion.div 
+                  initial={{ opacity: 0, y: 20 }} 
+                  animate={{ opacity: 1, y: 0 }} 
+                  transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
+                  className="col-span-2 bg-white/60 backdrop-blur-md rounded-[24px] p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-white/50 flex flex-col gap-5 mt-1"
+               >
+                  <div className="text-[11px] text-[#9b9890] font-bold tracking-[0.08em] uppercase">Progress Matrix</div>
+                  
+                  <div className="grid grid-cols-3 gap-3">
+                     <div className="flex flex-col items-center justify-center bg-white rounded-[16px] py-5 shadow-sm border border-[#e0ddd6]/50 hover:-translate-y-1 transition-transform duration-400 ease-out cursor-default">
+                        <div className="text-[28px] font-serif font-medium text-[#1a1917] leading-none mb-2">{items.filter(i=>i.status==='watching').length}</div>
+                        <div className="text-[10px] text-[#2e7d32] font-bold uppercase tracking-[0.06em]">Watching</div>
                      </div>
-                     <div>
-                        <div className="text-[24px] font-semibold text-[#1a1917] leading-none mb-1 text-center">{items.filter(i=>i.status==='plan' || !i.status).length}</div>
-                        <div className="text-[12px] text-[#d4840a] font-semibold bg-[#fef3e2] px-2 py-0.5 rounded uppercase tracking-[0.04em]">Plan</div>
+                     <div className="flex flex-col items-center justify-center bg-white rounded-[16px] py-5 shadow-sm border border-[#e0ddd6]/50 hover:-translate-y-1 transition-transform duration-400 ease-out cursor-default">
+                        <div className="text-[28px] font-serif font-medium text-[#1a1917] leading-none mb-2">{items.filter(i=>i.status==='plan' || !i.status).length}</div>
+                        <div className="text-[10px] text-[#d4840a] font-bold uppercase tracking-[0.06em]">Plan</div>
                      </div>
-                     <div className="text-right">
-                        <div className="text-[24px] font-semibold text-[#1a1917] leading-none mb-1">{items.filter(i=>i.status==='completed').length}</div>
-                        <div className="text-[12px] text-[#6a1bdb] font-semibold bg-[#ede7f6] px-2 py-0.5 rounded uppercase tracking-[0.04em]">Completed</div>
+                     <div className="flex flex-col items-center justify-center bg-white rounded-[16px] py-5 shadow-sm border border-[#e0ddd6]/50 hover:-translate-y-1 transition-transform duration-400 ease-out cursor-default">
+                        <div className="text-[28px] font-serif font-medium text-[#1a1917] leading-none mb-2">{items.filter(i=>i.status==='completed').length}</div>
+                        <div className="text-[10px] text-[#6a1bdb] font-bold uppercase tracking-[0.06em]">Completed</div>
                      </div>
                   </div>
-               </div>
+               </motion.div>
             </div>
-        </div>
+        </motion.div>
       )}
       </div>
 
@@ -350,10 +398,10 @@ export default function App() {
           <>
             <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => !isLoading && setShowAdd(false)} className="fixed inset-0 bg-[#1a1917]/30 backdrop-blur-sm z-[60] w-full max-w-[430px] mx-auto" />
             <motion.div 
-              initial={{ opacity: 0, y: "100%" }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: "100%" }}
-              transition={{ type: "spring", damping: 24, stiffness: 220 }}
+              initial={{ opacity: 0, y: "100%", scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: "100%", scale: 0.95 }}
+              transition={{ type: "spring", bounce: 0.15, duration: 0.6 }}
               className="fixed inset-x-0 bottom-0 z-[70] p-4 pt-16 pointer-events-none w-full max-w-[430px] mx-auto"
             >
                <div className="w-full bg-[#f0ede8] border border-[#e0ddd6] rounded-[24px] p-6 pb-8 shadow-[0_20px_40px_rgba(0,0,0,0.2)] pointer-events-auto flex flex-col gap-4">
@@ -534,10 +582,10 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
   return (
     <div 
        onClick={onClick} 
-       className="flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full animate-list-item group"
+       className="flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full animate-list-item group active:scale-[0.97] active:bg-black/5 transition-all duration-300 ease-out origin-center"
        style={{ animationDelay: `${index * 0.03 + 0.02}s` }}
     >
-       <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-xl overflow-hidden border border-[#e0ddd6] group-hover:-translate-y-0.5 transition-transform">
+       <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-xl overflow-hidden border border-[#e0ddd6] group-hover:-translate-y-1 group-active:-translate-y-0.5 group-hover:shadow-md transition-all duration-400 ease-out">
           {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (item.type === 'movie' ? '🍿' : '📺')}
        </div>
        
@@ -585,7 +633,7 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
   const [tempPoster, setTempPoster] = useState(item.poster || '');
 
   return (
-    <motion.div initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} transition={{type: "spring", damping: 25, stiffness: 220}} className="fixed inset-0 z-50 bg-brand-bg flex flex-col overflow-y-auto no-scrollbar w-full max-w-[430px] mx-auto overflow-x-hidden">
+    <motion.div initial={{y:"100%", opacity: 0.8 }} animate={{y:0, opacity: 1 }} exit={{y:"100%", opacity: 0 }} transition={{type: "spring", damping: 28, stiffness: 200, mass: 0.8}} className="fixed inset-0 z-50 bg-brand-bg flex flex-col overflow-y-auto no-scrollbar w-full max-w-[430px] mx-auto overflow-x-hidden">
       
       <div className="relative w-full aspect-[3/4] max-h-[45vh] shrink-0 bg-[#e0dbd4] shadow-sm">
         {item.poster ? (
@@ -657,26 +705,26 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
            <div className="flex gap-1 w-full">
               <button 
                 onClick={() => onUpdate({status: 'plan'})} 
-                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-colors cursor-pointer w-full ${item.status === 'plan' || !item.status ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5'}`}
+                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'plan' || !item.status ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
               >
                 Plan to Watch
               </button>
               <button 
                 onClick={() => onUpdate({status: 'watching'})} 
-                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-colors cursor-pointer w-full ${item.status === 'watching' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5'}`}
+                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'watching' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
               >
                 Watching
               </button>
               <button 
                 onClick={() => onUpdate({status: 'completed'})} 
-                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-colors cursor-pointer w-full ${item.status === 'completed' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5'}`}
+                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'completed' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
               >
                 Completed
               </button>
            </div>
         </div>
 
-        <button onClick={() => { onRemove(item.id); onClose(); }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[#d32f2f] hover:bg-[#d32f2f]/10 transition-colors mt-auto font-medium text-[13px] cursor-pointer">
+        <button onClick={() => { onRemove(item.id); onClose(); }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[#d32f2f] hover:bg-[#d32f2f]/10 active:scale-[0.98] transition-all duration-300 ease-out mt-auto font-medium text-[13px] cursor-pointer">
            <Trash2 size={16} /> Delete Title
         </button>
       </div>
@@ -684,8 +732,11 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
       <AnimatePresence>
         {isEditingPoster && (
           <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-[#1a1917]/40 backdrop-blur-md flex flex-col items-center justify-center p-6 z-50 text-center"
+            initial={{ opacity: 0, scale: 0.95 }} 
+            animate={{ opacity: 1, scale: 1 }} 
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+            className="absolute inset-0 bg-[#1a1917]/40 backdrop-blur-md flex flex-col items-center justify-center p-6 z-[60] text-center"
           >
               <div className="w-full bg-[#f0ede8] border border-[#e0ddd6] rounded-[20px] p-6 shadow-xl flex flex-col gap-4 text-left">
                  <h3 className="font-serif text-[28px] leading-none text-[#1a1917] tracking-[-0.5px]">Edit poster</h3>
