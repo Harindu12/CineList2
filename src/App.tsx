@@ -395,18 +395,20 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* FLOATING BOTTOM BAR */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1a1917]/90 backdrop-blur-xl rounded-[24px] px-6 py-3 flex items-center justify-between z-[50] shadow-[0_12px_40px_rgba(0,0,0,0.2)] border border-[#333] w-[calc(100%-48px)] max-w-[340px]">
-        <button onClick={() => setActiveView('home')} className={`flex flex-col items-center gap-1 ${activeView === 'home' ? 'text-white' : 'text-[#b8b5ad] hover:text-white'} transition-colors cursor-pointer w-16`}>
-           <Home size={22} strokeWidth={2.2} />
-           <span className="text-[10px] font-bold tracking-wide">Home</span>
+      {/* SMALL FLOATING BOTTOM BAR */}
+      <div className="fixed bottom-[24px] left-1/2 -translate-x-1/2 bg-[#1a1917]/95 backdrop-blur-xl rounded-[28px] px-6 py-2.5 flex items-center justify-center gap-6 z-[50] shadow-[0_16px_40px_rgba(0,0,0,0.25)] border border-[#302e2a]">
+        <button onClick={() => setActiveView('home')} className={`flex flex-col items-center justify-center gap-1 outline-none transition-all cursor-pointer min-w-[44px] ${activeView === 'home' ? 'text-white' : 'text-[#858279] hover:text-[#c4c1b9]'}`}>
+           <Home size={20} strokeWidth={2.5} />
+           <span className="text-[10px] font-bold tracking-wide leading-none">Home</span>
         </button>
-        <button onClick={() => setShowAdd(true)} className="w-[46px] h-[46px] bg-white rounded-[16px] flex items-center justify-center text-[#1a1917] hover:scale-105 hover:-translate-y-0.5 active:scale-95 transition-all shadow-[0_4px_14px_rgba(255,255,255,0.25)] cursor-pointer border border-[#f0ede8]">
-           <Plus size={24} strokeWidth={3} />
+        
+        <button onClick={() => setShowAdd(true)} className="w-[42px] h-[42px] bg-white rounded-full flex items-center justify-center text-[#1a1917] outline-none hover:scale-105 active:scale-95 transition-all shadow-[0_2px_12px_rgba(255,255,255,0.15)] cursor-pointer mx-1">
+           <Plus size={22} strokeWidth={3} />
         </button>
-        <button onClick={() => setActiveView('stats')} className={`flex flex-col items-center gap-1 ${activeView === 'stats' ? 'text-white' : 'text-[#b8b5ad] hover:text-white'} transition-colors cursor-pointer w-16`}>
-           <BarChart2 size={22} strokeWidth={2.2} />
-           <span className="text-[10px] font-bold tracking-wide">Stats</span>
+        
+        <button onClick={() => setActiveView('stats')} className={`flex flex-col items-center justify-center gap-1 outline-none transition-all cursor-pointer min-w-[44px] ${activeView === 'stats' ? 'text-white' : 'text-[#858279] hover:text-[#c4c1b9]'}`}>
+           <BarChart2 size={20} strokeWidth={2.5} />
+           <span className="text-[10px] font-bold tracking-wide leading-none">Stats</span>
         </button>
       </div>
 
@@ -625,8 +627,33 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
 
         <p className="text-[14px] text-[#9b9890] font-sans leading-[1.6] mb-8">{item.synopsis || "No synopsis available for this title."}</p>
 
+        {/* Cast & Crew Headers */}
+        <div className="flex flex-col gap-5 mb-8 bg-white border border-[#e0ddd6] rounded-[20px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+           <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-bold tracking-[0.08em] text-[#b8b5ad] uppercase">Director</span>
+              <span className="text-[14px] font-medium text-[#1a1917]">{item.director || 'N/A'}</span>
+           </div>
+           
+           <div className="h-[1px] w-full bg-[#e0ddd6]/50" />
+           
+           <div className="flex flex-col gap-1.5">
+              <span className="text-[11px] font-bold tracking-[0.08em] text-[#b8b5ad] uppercase">Cast</span>
+              {item.cast && item.cast.length > 0 ? (
+                 <div className="flex flex-wrap gap-2 mt-1">
+                    {item.cast.map(actor => (
+                       <span key={actor} className="text-[13px] font-medium text-[#1a1917] bg-[#f0ede8] px-3 py-1.5 rounded-[8px] border border-[#d0cac3]/50">
+                          {actor}
+                       </span>
+                    ))}
+                 </div>
+              ) : (
+                 <span className="text-[14px] font-medium text-[#1a1917]">N/A</span>
+              )}
+           </div>
+        </div>
+
         {/* Status Actions */}
-        <div className="flex flex-col gap-2 bg-white rounded-[16px] p-1.5 border border-[#e0ddd6] shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-6 mt-4">
+        <div className="flex flex-col gap-2 bg-white rounded-[16px] p-1.5 border border-[#e0ddd6] shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-6">
            <div className="flex gap-1 w-full">
               <button 
                 onClick={() => onUpdate({status: 'plan'})} 
