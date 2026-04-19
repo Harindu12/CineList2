@@ -231,7 +231,7 @@ export default function App() {
       <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
 
       {/* HEADER - FLUSH WITH BACKGROUND */}
-      <div className="sticky top-0 z-40 bg-[#f0ede8]/95 backdrop-blur-xl pt-[52px] transition-all pb-0">
+      <div className="sticky top-0 z-40 bg-[#f0ede8]/95 backdrop-blur-xl pt-8 transition-all pb-0">
         
         {/* TOP ROW: TITLE & SETTINGS/ACTIONS */}
         <div className="px-[24px] flex items-center justify-between mb-4">
@@ -283,14 +283,14 @@ export default function App() {
         </div>
       </div>
 
-      <div className="relative z-10 pt-2">
+      <div className="relative z-10 pt-0">
       {activeView === 'home' ? (
       <>
       {isInitializing ? (
          <div className="animate-in fade-in duration-300 pb-10">
             {filter === 'All' ? (
-              <div className="bg-[#e8e5df] min-h-screen pt-2 rounded-t-[24px]">
-                <div className="pt-8 px-[24px] pb-4 flex items-center"><div className="h-[10px] w-20 bg-[#d0cac3] rounded-full animate-pulse" /></div>
+              <div className="bg-[#e8e5df] min-h-screen pt-1 rounded-t-[24px]">
+                <div className="pt-6 px-[24px] pb-4 flex items-center"><div className="h-[10px] w-20 bg-[#d0cac3] rounded-full animate-pulse" /></div>
                 <div className="px-[24px] flex flex-col gap-[10px]">
                   {[1, 2, 3, 4, 5].map(i => <ListCardSkeleton key={i} />)}
                 </div>
@@ -306,8 +306,8 @@ export default function App() {
          </div>
       ) : filter !== 'All' ? (
          // Filtered View
-         <div className="animate-in fade-in duration-300 pb-10 bg-[#e8e5df] min-h-screen rounded-t-[24px] mt-2">
-            <div className="px-[24px] pb-[16px] pt-[32px] text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">{filter}</div>
+         <div className="animate-in fade-in duration-300 pb-10 bg-[#e8e5df] min-h-screen rounded-t-[24px] mt-1">
+            <div className="px-[24px] pb-[16px] pt-6 text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">{filter}</div>
             <div className="px-[24px] flex flex-col gap-[10px]">
               {filteredItems.map((item, i) => (
                  <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />
@@ -317,11 +317,11 @@ export default function App() {
          </div>
       ) : (
          // Main All View
-         <div className="animate-in fade-in duration-300 pb-10 mt-2">
-            <div className="bg-[#e8e5df] min-h-screen pb-20 pt-[8px] rounded-t-[24px] shadow-[0_-4px_16px_rgba(0,0,0,0.02)]">
+         <div className="animate-in fade-in duration-300 pb-10 mt-1">
+            <div className="bg-[#e8e5df] min-h-screen pb-20 pt-[6px] rounded-t-[24px] shadow-[0_-4px_16px_rgba(0,0,0,0.02)]">
               {watchingItems.length > 0 && (
                  <div className="mb-[24px]">
-                   <div className="px-[24px] pb-[16px] pt-[24px] text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">Watching now</div>
+                   <div className="px-[24px] pb-[16px] pt-4 text-[13px] font-black tracking-[0.06em] uppercase text-[#9b9890]">Watching now</div>
                    <div className="px-[24px] flex flex-col gap-[10px]">
                      {watchingItems.map((item, i) => <ListCard key={item.id} item={item} index={i} onClick={() => setSelectedId(item.id)} />)}
                    </div>
@@ -464,7 +464,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* FLOATING BOTTOM BAR */}
-      <div className="fixed bottom-[20px] left-1/2 -translate-x-1/2 bg-[#1a1917]/90 backdrop-blur-xl rounded-[24px] px-6 py-3 flex items-center justify-between z-[50] shadow-[0_12px_40px_rgba(0,0,0,0.2)] border border-[#333] w-[calc(100%-40px)] max-w-[320px]">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1a1917]/90 backdrop-blur-xl rounded-[24px] px-6 py-3 flex items-center justify-between z-[50] shadow-[0_12px_40px_rgba(0,0,0,0.2)] border border-[#333] w-[calc(100%-48px)] max-w-[340px]">
         <button onClick={() => setActiveView('home')} className={`flex flex-col items-center gap-1 ${activeView === 'home' ? 'text-white' : 'text-[#b8b5ad] hover:text-white'} transition-colors cursor-pointer w-16`}>
            <Home size={22} strokeWidth={2.2} />
            <span className="text-[10px] font-bold tracking-wide">Home</span>
