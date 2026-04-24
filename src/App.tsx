@@ -485,42 +485,40 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
     const onScroll = () => {
       if (typeof window === 'undefined') return;
       window.requestAnimationFrame(() => {
-        const scrollTop = scroller.scrollTop;
-        const wraps = scroller.querySelectorAll('.card-wrap-sticky') as NodeListOf<HTMLElement>;
+        const scrollerRect = scroller.getBoundingClientRect();
+        const anchors = scroller.querySelectorAll('.card-wrap-anchor') as NodeListOf<HTMLElement>;
         
-        wraps.forEach((wrap, i) => {
+        anchors.forEach((anchor) => {
+          const wrap = anchor.querySelector('.card-wrap-sticky') as HTMLElement;
+          if (!wrap) return;
           const card = wrap.querySelector('.card-inner') as HTMLElement;
           if (!card) return;
           
           wrap.style.perspective = 'none'; // Clear 3D
           
-          const stickyTop = 0; // Pure stacked flush to header
-          const naturalTop = i * (cardH + 10);
-          const passedBy = scrollTop - naturalTop + stickyTop;
+          const anchorRect = anchor.getBoundingClientRect();
+          // How far the natural position of this item scrolled past the top of the viewport
+          const passedBy = (scrollerRect.top + 10) - anchorRect.top; // +10 to match the pt-[10px] of the sticky wrap
           
           if (passedBy > 0) {
              if (passedBy > cardH * 1.5) {
-                // Far off-screen: clamp transform and opacity to prevent micro-repainting calculation overhead
+                // Far off-screen
                 if (card.style.opacity !== '0') {
                     card.style.transform = `translate3d(0, -32px, 0) scale(0.95)`;
                     card.style.opacity = '0';
                 }
              } else {
-                 // 1. Editorial Fade & Slide:
-                 // Use exponential easing out to make it silky smooth
                  const rawProgress = Math.min(passedBy / cardH, 1);
                  const easeProgress = 1 - Math.pow(1 - rawProgress, 3);
                  
-                 const translateY = -(easeProgress * 28); // Gentle float up into the blur
-                 const scale = 1 - (easeProgress * 0.05); // Tiny shrink back into the Z plane
-                 // Opacity fades linearly against passedBy to disappear precisely
+                 const translateY = -(easeProgress * 28);
+                 const scale = 1 - (easeProgress * 0.05);
                  const opacity = 1 - (passedBy / (cardH * 0.9));
                  
                  card.style.transform = `translate3d(0, ${translateY}px, 0) scale(${scale})`;
                  card.style.opacity = Math.max(opacity, 0).toString();
              }
           } else {
-             // Idle natural scrolling state
              card.style.transform = 'translate3d(0, 0, 0) scale(1)';
              card.style.opacity = '1';
           }
@@ -529,7 +527,8 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
     };
 
     scroller.addEventListener('scroll', onScroll, { passive: true });
-    onScroll();
+    // trigger once to set initial state
+    setTimeout(onScroll, 50);
     return () => scroller.removeEventListener('scroll', onScroll);
   }, [items, cardH]);
 
@@ -537,11 +536,13 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
      return (
         <div ref={scrollerRef} className="flex-1 overflow-y-auto no-scrollbar px-[24px] pb-[110px] relative w-full pt-1">
           <div className="pb-[40px]">
-            {[1,2,3,4,5].map((i, index) => (
-              <div key={i} className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: i + 1 }}>
-                 <div className="card-inner relative overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] rounded-[16px] bg-white border border-[#e0ddd6]/50" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
-                    <ListCardSkeleton />
-                 </div>
+            {[1,2,3,4,5].map((i) => (
+              <div key={i} className="card-wrap-anchor relative h-[125px]">
+                <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: i + 1 }}>
+                   <div className="card-inner relative overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] rounded-[16px] bg-white border border-[#e0ddd6]/50" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
+                      <ListCardSkeleton />
+                   </div>
+                </div>
               </div>
             ))}
           </div>
@@ -563,13 +564,41 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
      );
   }
 
+  // Group items by Genre
+  const groupedItems = items.reduce((acc, item) => {
+     let genre = item.genre ? item.genre.split(',')[0].trim() : 'Other';
+     if (!genre) genre = 'Other';
+     if (!acc[genre]) {
+        acc[genre] = [];
+     }
+     acc[genre].push(item);
+     return acc;
+  }, {} as Record<string, TitleItem[]>);
+
+  // Sort genres alphabetically
+  const sortedGenres = Object.keys(groupedItems).sort();
+
+  let globalIndex = 0; // Use for staggered animations and stacking z-index
+
   return (
     <div ref={scrollerRef} className="flex-1 overflow-y-auto no-scrollbar px-[24px] pb-[110px] relative w-full pt-1">
-      <div className="pb-[40px]">
-        {items.map((item, i) => (
-           <div key={item.id} className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: i + 1 }}>
-              <div className="card-inner relative overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] transition-shadow duration-300 rounded-[16px] bg-white cursor-pointer border border-[#e0ddd6]/50" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
-                 <ListCard item={item} index={i} onClick={() => onSelect(item.id)} />
+      <div className="pb-[40px] flex flex-col gap-8">
+        {sortedGenres.map((genre) => (
+           <div key={genre} className="flex flex-col">
+              <h3 className="font-serif text-[24px] font-medium text-[#1a1917] tracking-tight mb-1">{genre}</h3>
+              <div className="mt-2">
+                 {groupedItems[genre].map((item) => {
+                    globalIndex++;
+                    return (
+                       <div key={item.id} className="card-wrap-anchor relative h-[130px]">
+                         <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
+                            <div className="card-inner relative overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] transition-shadow duration-300 rounded-[16px] bg-white cursor-pointer border border-[#e0ddd6]/50" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
+                               <ListCard item={item} index={globalIndex} onClick={() => onSelect(item.id)} />
+                            </div>
+                         </div>
+                       </div>
+                    );
+                 })}
               </div>
            </div>
         ))}
