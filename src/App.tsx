@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { motion, AnimatePresence } from 'motion/react';
-import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud, Bookmark, BarChart2 } from 'lucide-react';
+import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud, Bookmark, BarChart2, ChevronLeft, CheckCircle2, PlayCircle } from 'lucide-react';
 
 import { db } from './firebase';
 import { collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
@@ -127,6 +127,9 @@ export default function App() {
       setShowAdd(false);
       setStatusText('');
     } catch (err: any) {
+      console.error("Gemini API Error:", err);
+      alert("Could not fetch details. If deployed, ensure GEMINI_API_KEY is set in your environment variables and redeploy. Adding title with basic info instead.");
+      
       if (items.some((i) => i.title.toLowerCase() === nameQuery.trim().toLowerCase())) {
         setStatusText('Already in list.');
         setIsLoading(false);
@@ -647,11 +650,16 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
          </div>
        </div>
 
-       <div className="flex shrink-0 ml-1 text-[#9b9890] hover:text-[#1a1917] transition-colors p-2 active:scale-90" onClick={(e) => {
+       <div className="flex shrink-0 ml-1 transition-all p-2 active:scale-90" onClick={(e) => {
           e.stopPropagation();
-          // Ideally open a quick status change, but for now just prevent opening detail view
        }}>
-          <Bookmark size={18} strokeWidth={2.5} />
+          {item.status === 'completed' ? (
+             <CheckCircle2 size={18} strokeWidth={2.5} className="text-[#6a1bdb] opacity-80" />
+          ) : item.status === 'watching' ? (
+             <PlayCircle size={18} strokeWidth={2.5} className="text-[#2e7d32] opacity-80" />
+          ) : (
+             <Bookmark size={18} strokeWidth={2.5} className="text-[#d4840a] opacity-80" />
+          )}
        </div>
     </div>
   )
@@ -664,44 +672,57 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
   return (
     <motion.div initial={{y:"100%", opacity: 0.8 }} animate={{y:0, opacity: 1 }} exit={{y:"100%", opacity: 0 }} transition={{type: "spring", damping: 28, stiffness: 200, mass: 0.8}} className="fixed inset-0 z-50 bg-brand-bg flex flex-col overflow-y-auto no-scrollbar w-full max-w-[430px] mx-auto overflow-x-hidden">
       
-      <div className="relative w-full aspect-[3/4] max-h-[45vh] shrink-0 bg-[#e0dbd4] shadow-sm">
-        {item.poster ? (
-           <img src={item.poster} className="w-full h-full object-cover" />
-        ) : (
-           <div className="w-full h-full flex flex-col items-center justify-center border-b border-brand-border text-[64px]">
-             {item.type === 'movie' ? '🎬' : '📺'}
-             <span className="text-brand-sub uppercase tracking-[1px] text-[10px] font-semibold mt-2">No Poster</span>
-           </div>
-        )}
-
-        {/* Gradient Overlay for seamless transition */}
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#f0ede8] to-transparent pointer-events-none" />
-
-        <button onClick={onClose} className="absolute top-6 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 z-10 cursor-pointer shadow-sm hover:bg-black/50 active:scale-95 transition-all">
-           <X size={18} />
-        </button>
-        <button onClick={() => setIsEditingPoster(true)} className="absolute top-6 left-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md text-white border border-white/10 z-10 cursor-pointer shadow-sm hover:bg-black/50 active:scale-95 transition-all">
-           <ImagePlus size={16} />
-        </button>
-      </div>
-
-      <div className="relative z-10 flex-1 bg-brand-bg rounded-t-[20px] -mt-5 px-6 pt-8 pb-32 flex flex-col shadow-[0_-4px_16px_rgba(0,0,0,0.05)] border-t border-brand-border">
-        <div className="flex items-center gap-2.5 mb-2 flex-wrap">
-           <span className="text-[11px] font-bold tracking-[0.08em] text-[#9b9890] uppercase">{item.type}</span>
-           {item.year && <span className="text-[12px] font-medium text-[#9b9890]">{item.year}</span>}
-           {item.rating && <span className="text-[12px] font-semibold text-[#1a1917] flex items-center gap-1 ml-auto"><Star size={12} className="fill-[#e8a020] text-[#e8a020]" /> {item.rating}</span>}
+      {/* FULL WIDTH POSTER HERO */}
+      <div className="relative w-full min-h-[60vh] shrink-0 bg-[#e0dbd4] flex flex-col justify-end">
+        <div className="absolute inset-0">
+          {item.poster ? (
+             <img src={item.poster} className="w-full h-full object-cover object-top" />
+          ) : (
+             <div className="w-full h-full flex flex-col items-center justify-center border-b border-brand-border text-[64px]">
+               {item.type === 'movie' ? '🎬' : '📺'}
+               <span className="text-brand-sub uppercase tracking-[1px] text-[10px] font-semibold mt-2">No Poster</span>
+             </div>
+          )}
         </div>
 
-        <h1 className="font-serif text-[42px] leading-[0.95] text-[#1a1917] mb-4 tracking-[-0.5px]">{item.title}</h1>
-        
-        {item.genre && (
-          <div className="flex gap-1.5 flex-wrap mb-5">
-             {item.genre.split(',').map(g => g.trim()).map(g => (
-                <span key={g} className="text-[11px] font-semibold px-2 py-1 rounded-[6px] bg-white shadow-[0_1px_3px_rgba(0,0,0,0.06)] text-[#1a1917] border border-[#e0ddd6]">{g}</span>
-             ))}
-          </div>
-        )}
+        {/* Tall Gradient Overlay for legibility & seamless transition */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_top,#f0ede8_0%,#f0ede8_15%,rgba(240,237,232,0.85)_30%,rgba(240,237,232,0.4)_50%,transparent_85%)] pointer-events-none" />
 
+        {/* Top Actions: Back / Edit */}
+        <button onClick={onClose} className="absolute top-6 left-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10 z-20 cursor-pointer shadow-sm hover:bg-black/30 active:scale-95 transition-all">
+           <ChevronLeft size={20} strokeWidth={2.5} className="-ml-0.5" />
+        </button>
+        <button onClick={() => setIsEditingPoster(true)} className="absolute top-6 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10 z-20 cursor-pointer shadow-sm hover:bg-black/30 active:scale-95 transition-all">
+           <ImagePlus size={16} />
+        </button>
+
+        {/* Hero Content Overlay */}
+        <div className="relative z-10 px-6 pb-6 w-full flex flex-col items-center text-center">
+            
+            <div className="flex items-center gap-2 mb-2 flex-wrap justify-center">
+               <span className="text-[11px] font-bold tracking-[0.08em] text-[#9b9890] uppercase leading-none">{item.type}</span>
+               {item.year && <span className="text-[11px] font-bold tracking-[0.08em] text-[#b8b5ad] leading-none">•</span>}
+               {item.year && <span className="text-[11px] font-bold tracking-[0.08em] text-[#9b9890] uppercase leading-none">{item.year}</span>}
+            </div>
+
+            <h1 className="font-serif text-[48px] sm:text-[56px] leading-[0.95] text-[#1a1917] mb-5 tracking-[-0.03em] line-clamp-3">{item.title}</h1>
+            
+            <div className="flex gap-2 flex-wrap justify-center items-center">
+               {item.rating && (
+                  <span className="text-[11px] font-bold px-3 py-1.5 rounded-[12px] bg-white/40 backdrop-blur-md shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-[#1a1917] border border-white/40 flex items-center gap-1">
+                     <Star size={12} className="fill-[#e8a020] text-[#e8a020]" /> {item.rating}
+                  </span>
+               )}
+               {item.genre && item.genre.split(',').map(g => g.trim()).map(g => (
+                  <span key={g} className="text-[11px] font-bold px-3 py-1.5 rounded-[12px] bg-white/40 backdrop-blur-md shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-[#1a1917] border border-white/40">
+                     {g}
+                  </span>
+               ))}
+            </div>
+        </div>
+      </div>
+
+      <div className="relative z-10 flex-1 bg-brand-bg px-6 pt-4 pb-32 flex flex-col">
         <p className="text-[14px] text-[#9b9890] font-sans leading-[1.6] mb-8">{item.synopsis || "No synopsis available for this title."}</p>
 
         {/* Cast & Crew Headers */}
