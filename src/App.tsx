@@ -962,9 +962,9 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
           e.stopPropagation();
        }}>
           {item.status === 'completed' ? (
-             <CheckCircle2 size={18} strokeWidth={2.5} className="text-[#6a1bdb] opacity-80" />
+             <CheckCircle2 size={18} strokeWidth={2.5} className="text-[#388e3c] opacity-80" />
           ) : item.status === 'watching' ? (
-             <PlayCircle size={18} strokeWidth={2.5} className="text-[#2e7d32] opacity-80" />
+             <PlayCircle size={18} strokeWidth={2.5} className="text-[#6a1bdb] opacity-80" />
           ) : (
              <Bookmark size={18} strokeWidth={2.5} className="text-[#d4840a] opacity-80" />
           )}
