@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
 import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud, Bookmark, BarChart2, ChevronLeft, CheckCircle2, PlayCircle } from 'lucide-react';
 
 import { db } from './firebase';
@@ -69,9 +69,8 @@ export default function App() {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Find details for the movie or TV show: "${nameQuery}". Use the googleSearch tool to fetch accurate metadata. Return a raw JSON object only. Do NOT provide a poster URL.`,
+        contents: `Find details for the movie or TV show: "${nameQuery}". Return a raw JSON object only. Do NOT provide a poster URL. Provide the IMDb rating (e.g., 8.5/10) rather than the age rating.`,
         config: {
-          tools: [{ googleSearch: {} }],
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.OBJECT,
@@ -223,6 +222,62 @@ export default function App() {
     e.target.value = '';
   };
 
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const syncMetadata = async () => {
+    if (isSyncing || items.length === 0) return;
+    setIsSyncing(true);
+    setStatusText('Syncing metadata...');
+
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    
+    // We'll process in chunks to avoid overwhelming the API
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      // Only sync if cast is missing or rating looks like an age rating
+      const needsUpdate = !item.cast || item.cast.length === 0 || !item.rating?.includes('/');
+      
+      if (needsUpdate) {
+        setStatusText(`Syncing [${i+1}/${items.length}] ${item.title}...`);
+        try {
+          const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: `Find the official IMDb rating (e.g. "8.6/10") and the main cast members for the movie/TV show: "${item.title}" (${item.year || ''}). Return a raw JSON object only.`,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  rating: { type: Type.STRING, description: "IMDb Rating, e.g., '8.5/10'" },
+                  cast: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Main cast members, up to 5" }
+                },
+                required: ["rating", "cast"]
+              }
+            }
+          });
+          
+          const jsonText = response.text || "{}";
+          const data = JSON.parse(jsonText);
+          
+          if (data.rating || (data.cast && data.cast.length > 0)) {
+            await updateDoc(doc(db, 'titles', item.id.toString()), {
+              rating: data.rating || item.rating,
+              cast: data.cast || item.cast || []
+            });
+          }
+        } catch (err) {
+          console.error(`Failed to sync ${item.title}:`, err);
+        }
+        // Small delay
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+
+    setIsSyncing(false);
+    setStatusText('Sync complete.');
+    setTimeout(() => setStatusText(''), 3000);
+  };
+
   const watchingItems = items.filter(i => i.status === 'watching');
   const planItems = items.filter(i => i.status === 'plan' || !i.status);
   const completedItems = items.filter(i => i.status === 'completed');
@@ -241,6 +296,11 @@ export default function App() {
           <div className="font-serif text-[32px] tracking-[-0.03em] leading-none text-[#1a1917] font-bold">
              Watch<em className="italic ml-[1px]">list</em>
           </div>
+          {statusText && (
+            <div className="absolute left-1/2 -translate-x-1/2 top-4 bg-[#1a1917]/10 px-3 py-1 rounded-full backdrop-blur-sm transition-all animate-pulse">
+               <span className="text-[10px] font-bold text-[#1a1917] whitespace-nowrap">{statusText}</span>
+            </div>
+          )}
           <div className="flex items-center gap-1.5 p-1">
             <button 
                onClick={() => fileInputRef.current?.click()}
@@ -360,7 +420,26 @@ export default function App() {
                   transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
                   className="col-span-2 bg-white/60 backdrop-blur-md rounded-[24px] p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-white/50 flex flex-col gap-5 mt-1"
                >
-                  <div className="text-[11px] text-[#9b9890] font-bold tracking-[0.08em] uppercase">Progress Matrix</div>
+                  <div className="flex justify-between items-center">
+                    <div className="text-[11px] text-[#9b9890] font-bold tracking-[0.08em] uppercase">Progress Matrix</div>
+                    <button 
+                      onClick={syncMetadata}
+                      disabled={isSyncing}
+                      className="text-[10px] font-bold text-[#1a1917] bg-white border border-[#e0ddd6] px-3 py-1.5 rounded-full hover:bg-black/5 active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {isSyncing ? (
+                        <>
+                          <div className="w-2 h-2 rounded-full bg-[#e8a020] animate-pulse" />
+                          Syncing...
+                        </>
+                      ) : (
+                        <>
+                          <Star size={10} />
+                          Sync IMDb & Cast
+                        </>
+                      )}
+                    </button>
+                  </div>
                   
                   <div className="grid grid-cols-3 gap-3">
                      <div className="flex flex-col items-center justify-center bg-white rounded-[16px] py-5 shadow-sm border border-[#e0ddd6]/50 hover:-translate-y-1 transition-transform duration-400 ease-out cursor-default">
@@ -542,7 +621,7 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
             {[1,2,3,4,5].map((i) => (
               <div key={i} className="card-wrap-anchor relative h-[125px]">
                 <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: i + 1 }}>
-                   <div className="card-inner relative overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] rounded-[16px] bg-white border border-[#e0ddd6]/50" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
+                   <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
                       <ListCardSkeleton />
                    </div>
                 </div>
@@ -589,19 +668,29 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
         {sortedGenres.map((genre) => (
            <div key={genre} className="flex flex-col">
               <h3 className="font-serif text-[24px] font-medium text-[#1a1917] tracking-tight mb-1">{genre}</h3>
-              <div className="mt-2">
+              <div className="mt-2 text-left">
+                 <AnimatePresence initial={false}>
                  {groupedItems[genre].map((item) => {
                     globalIndex++;
                     return (
-                       <div key={item.id} className="card-wrap-anchor relative h-[130px]">
+                       <motion.div 
+                         key={item.id} 
+                         layout="position"
+                         initial={{ height: 0, opacity: 0 }}
+                         animate={{ height: 130, opacity: 1 }}
+                         exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                         transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
+                         className="card-wrap-anchor relative"
+                       >
                          <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
-                            <div className="card-inner relative overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] transition-shadow duration-300 rounded-[16px] bg-white cursor-pointer border border-[#e0ddd6]/50" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
+                            <div className="card-inner relative animate-list-item" style={{ animationDelay: `${Math.min(globalIndex, 15) * 0.03 + 0.02}s`, transformOrigin: 'top center', willChange: 'transform, opacity' }}>
                                <ListCard item={item} index={globalIndex} onClick={() => onSelect(item.id)} />
                             </div>
                          </div>
-                       </div>
+                       </motion.div>
                     );
                  })}
+                 </AnimatePresence>
               </div>
            </div>
         ))}
@@ -611,13 +700,93 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
 }
 
 function ListCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void, key?: any }) {
+  const [removedDir, setRemovedDir] = useState<'left' | 'right' | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  
+  const x = useMotionValue(0);
+  
+  // Transform x to specific styles
+  const backgroundColor = useTransform(
+    x,
+    [-150, -80, -30, 0, 30, 80, 150],
+    [
+      '#d32f2f', 
+      '#ef5350', 
+      '#e0ddd6', 
+      '#e0ddd6', 
+      '#e0ddd6', 
+      item.status === 'completed' ? '#ffb74d' : '#66bb6a', 
+      item.status === 'completed' ? '#f57c00' : '#388e3c'
+    ]
+  );
+  
+  const leftIconScale = useTransform(x, [30, 80, 150], [0.75, 1, 1.25], { clamp: true });
+  const leftIconOpacity = useTransform(x, [30, 80, 150], [0, 0.5, 1], { clamp: true });
+  
+  const rightIconScale = useTransform(x, [-150, -80, -30], [1.25, 1, 0.75], { clamp: true });
+  const rightIconOpacity = useTransform(x, [-150, -80, -30], [1, 0.5, 0], { clamp: true });
+
+  useEffect(() => {
+    setRemovedDir(null);
+  }, [item.status, item.id]);
+
+  const handleDragEnd = async (_: any, info: any) => {
+    setIsDragging(false);
+    if (!cardRef.current) return;
+    const thresh = cardRef.current.offsetWidth * 0.35;
+    const velocity = info.velocity.x;
+    
+    // Check if we passed the threshold or flicked it hard enough
+    if (info.offset.x > thresh || (info.offset.x > 50 && velocity > 600)) {
+      setRemovedDir('right');
+      setTimeout(async () => {
+        if (item.status === 'completed') {
+          await updateDoc(doc(db, 'titles', item.id.toString()), { status: 'plan' });
+        } else {
+          await updateDoc(doc(db, 'titles', item.id.toString()), { status: 'completed' });
+        }
+      }, 300);
+    } else if (info.offset.x < -thresh || (info.offset.x < -50 && velocity < -600)) {
+      setRemovedDir('left');
+      setTimeout(async () => {
+        await deleteDoc(doc(db, 'titles', item.id.toString()));
+      }, 300);
+    }
+  };
+
   return (
-    <div 
-       onClick={onClick} 
-       className="flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full animate-list-item group active:scale-[0.97] active:bg-black/5 transition-all duration-300 ease-out origin-center"
-       style={{ animationDelay: `${index * 0.03 + 0.02}s` }}
-    >
-       <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-xl overflow-hidden border border-[#e0ddd6] group-hover:-translate-y-1 group-active:-translate-y-0.5 group-hover:shadow-md transition-all duration-400 ease-out">
+    <div ref={cardRef} className="relative w-full rounded-[16px] overflow-hidden bg-[#e0ddd6]">
+      {/* Background reveals */}
+      <motion.div 
+         style={{ backgroundColor }} 
+         className={`absolute inset-0 flex items-center justify-between px-6 ${isDragging || removedDir ? 'opacity-100' : 'opacity-0'}`}
+      >
+         <motion.div style={{ scale: leftIconScale, opacity: leftIconOpacity }}>
+            {item.status === 'completed' ? (
+                <Bookmark color="white" size={28} />
+            ) : (
+                <CheckCircle2 color="white" size={28} />
+            )}
+         </motion.div>
+         <motion.div style={{ scale: rightIconScale, opacity: rightIconOpacity }}>
+            <Trash2 color="white" size={28} />
+         </motion.div>
+      </motion.div>
+
+      <motion.div 
+         drag={removedDir ? false : "x"}
+         dragConstraints={{ left: 0, right: 0 }}
+         dragElastic={0.8}
+         style={{ x }}
+         onDragStart={() => setIsDragging(true)}
+         onDragEnd={handleDragEnd}
+         animate={removedDir === 'right' ? { x: 500, opacity: 0 } : removedDir === 'left' ? { x: -500, opacity: 0 } : { x: 0, opacity: 1 }}
+         transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+         onClick={onClick} 
+         className="relative flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full bg-white group active:bg-black/5 hover:bg-black/[0.02] hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out origin-center cursor-pointer border border-[#e0ddd6]/50 rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+      >
+        <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-xl overflow-hidden border border-[#e0ddd6] group-hover:-translate-y-1 group-active:-translate-y-0.5 group-hover:shadow-md transition-all duration-400 ease-out pointer-events-none">
           {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (item.type === 'movie' ? '🍿' : '📺')}
        </div>
        
@@ -661,6 +830,7 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
              <Bookmark size={18} strokeWidth={2.5} className="text-[#d4840a] opacity-80" />
           )}
        </div>
+     </motion.div>
     </div>
   )
 }
@@ -710,7 +880,7 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
             <div className="flex gap-2 flex-wrap justify-center items-center">
                {item.rating && (
                   <span className="text-[11px] font-bold px-3 py-1.5 rounded-[12px] bg-white/40 backdrop-blur-md shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-[#1a1917] border border-white/40 flex items-center gap-1">
-                     <Star size={12} className="fill-[#e8a020] text-[#e8a020]" /> {item.rating}
+                     <Star size={12} className="fill-[#e8a020] text-[#e8a020]" /> IMDb {item.rating}
                   </span>
                )}
                {item.genre && item.genre.split(',').map(g => g.trim()).map(g => (
@@ -811,7 +981,7 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
 
 function ListCardSkeleton({ key }: { key?: any }) {
   return (
-    <div className="flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full animate-pulse">
+    <div className="flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full animate-pulse bg-white rounded-[16px] border border-[#e0ddd6]/50 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
        <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0" />
        <div className="flex-1 flex flex-col justify-center gap-1.5 py-1">
          <div className="h-[14px] bg-[#e0dbd4] rounded-[4px] w-[85%] mb-1" />
