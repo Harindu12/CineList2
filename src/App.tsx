@@ -11,6 +11,18 @@ const STORAGE_KEY = 'cinelist_v1';
 type TitleType = 'movie' | 'tv';
 type TitleStatus = 'watching' | 'plan' | 'completed';
 
+export type CollectionItem = {
+   isCollection: true;
+   id: string;
+   title: string;
+   items: TitleItem[];
+   genre: string;
+   status?: string;
+   poster?: string;
+};
+
+export type ListItem = TitleItem | CollectionItem;
+
 interface TitleItem {
   id: number;
   title: string;
@@ -551,6 +563,7 @@ export default function App() {
 function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] | null, isInitializing: boolean, onSelect: (id: number) => void }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [cardH, setCardH] = useState(120);
+  const [expandedColId, setExpandedColId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!scrollerRef.current) return;
@@ -646,8 +659,41 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
      );
   }
 
+  // Group items by collection first
+  const groupedByName: Record<string, TitleItem[]> = {};
+  items.forEach(item => {
+      let cName = item.title;
+      if (item.title.includes(':')) {
+          cName = item.title.split(':')[0].trim();
+      } else {
+          const match = item.title.match(/^(.*?)(?:\s+(?:[IVX]+|\d+))?$/i);
+          if (match && match[1]) {
+              cName = match[1].trim();
+          }
+      }
+      if (!groupedByName[cName]) groupedByName[cName] = [];
+      groupedByName[cName].push(item);
+  });
+
+  const listItems: ListItem[] = [];
+  for (const [cName, cItems] of Object.entries(groupedByName)) {
+      if (cItems.length > 1) {
+          listItems.push({
+              isCollection: true,
+              id: 'col_' + cName,
+              title: cName + (cName.toLowerCase().endsWith('collection') ? '' : ''),
+              items: cItems,
+              genre: cItems[0].genre || 'Other',
+              poster: cItems[0].poster,
+              status: cItems.every(i => i.status === 'completed') ? 'completed' : 'plan'
+          });
+      } else {
+          listItems.push(cItems[0]);
+      }
+  }
+
   // Group items by Genre
-  const groupedItems = items.reduce((acc, item) => {
+  const groupedItems = listItems.reduce((acc, item) => {
      let genre = item.genre ? item.genre.split(',')[0].trim() : 'Other';
      if (!genre) genre = 'Other';
      if (!acc[genre]) {
@@ -655,7 +701,7 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
      }
      acc[genre].push(item);
      return acc;
-  }, {} as Record<string, TitleItem[]>);
+  }, {} as Record<string, ListItem[]>);
 
   // Sort genres alphabetically
   const sortedGenres = Object.keys(groupedItems).sort();
@@ -672,6 +718,51 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
                  <AnimatePresence initial={false}>
                  {groupedItems[genre].map((item) => {
                     globalIndex++;
+                    if ('isCollection' in item) {
+                       const isExpanded = expandedColId === item.id;
+                       return (
+                          <React.Fragment key={item.id}>
+                             <motion.div 
+                               layout="position"
+                               initial={{ height: 0, opacity: 0 }}
+                               animate={{ height: 130, opacity: 1 }}
+                               exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                               transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
+                               className="card-wrap-anchor relative"
+                             >
+                                <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
+                                   <div className="card-inner relative animate-list-item" style={{ animationDelay: `${Math.min(globalIndex, 15) * 0.03 + 0.02}s`, transformOrigin: 'top center', willChange: 'transform, opacity' }}>
+                                      <CollectionCard item={item} isExpanded={isExpanded} onClick={() => setExpandedColId(isExpanded ? null : item.id)} />
+                                   </div>
+                                </div>
+                             </motion.div>
+                             
+                             <AnimatePresence>
+                                {isExpanded && item.items.map((subItem) => {
+                                   globalIndex++;
+                                   return (
+                                      <motion.div 
+                                        key={subItem.id}
+                                        layout="position"
+                                        initial={{ height: 0, opacity: 0, scale: 0.9, y: -20 }}
+                                        animate={{ height: 130, opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ height: 0, opacity: 0, scale: 0.9, y: -20, overflow: 'hidden' }}
+                                        transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+                                        className="card-wrap-anchor relative pl-8"
+                                      >
+                                        <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
+                                           <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
+                                              <ListCard item={subItem} index={globalIndex} onClick={() => onSelect(subItem.id)} />
+                                           </div>
+                                        </div>
+                                      </motion.div>
+                                   )
+                                })}
+                             </AnimatePresence>
+                          </React.Fragment>
+                       );
+                    }
+                    
                     return (
                        <motion.div 
                          key={item.id} 
@@ -697,6 +788,54 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
       </div>
     </div>
   );
+}
+
+function CollectionCard({ item, isExpanded, onClick }: { item: CollectionItem, isExpanded: boolean, onClick: () => void }) {
+  return (
+    <div 
+        onClick={onClick} 
+        className="relative flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full bg-[#f8f7f5] group active:bg-black/5 hover:bg-black/[0.02] hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out origin-center cursor-pointer border border-[#e0ddd6] rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+    >
+        {/* Stack effect behind the main poster */}
+        <div className="w-[70px] h-[105px] shrink-0 relative flex items-center justify-center text-xl overflow-visible pointer-events-none">
+            <div className={`absolute inset-0 bg-[#e0dbd4] border border-[#d0ccc6] rounded-[10px] transform ${isExpanded ? 'translate-x-1 -rotate-3 translate-y-1' : 'translate-x-1.5 -rotate-6'} transition-all`} />
+            <div className={`absolute inset-0 bg-[#f0ede8] border border-[#d0ccc6] rounded-[10px] transform ${isExpanded ? 'translate-x-0.5 rotate-2 translate-y-0.5' : 'translate-x-[10px] rotate-2'} transition-all`} />
+            <div className={`absolute inset-0 bg-white rounded-[10px] overflow-hidden border border-[#d0ccc6] shadow-sm transition-all z-10 ${isExpanded ? 'scale-[1.02]' : ''}`}>
+                {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : '🍿'}
+            </div>
+            
+            <motion.div 
+               animate={{ rotate: isExpanded ? 180 : 0 }}
+               className="absolute -right-3 -bottom-2 bg-[#1a1917] text-white rounded-full p-1 shadow-[0_2px_8px_rgba(0,0,0,0.3)] z-20"
+            >
+               <ChevronLeft size={14} className="-rotate-90" strokeWidth={3} />
+            </motion.div>
+        </div>
+        
+        <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
+            <div className="text-[16px] leading-[1.25] font-serif font-bold mb-1.5 text-[#1a1917] tracking-tight line-clamp-2 pr-2">{item.title}</div>
+            
+            <div className="flex flex-col gap-1">
+                <div className="text-[12px] text-[#9b9890] font-medium flex items-center gap-1.5 truncate">
+                    <span className="font-bold">{item.items.length} Titles</span>
+                    <div className="w-[3px] h-[3px] rounded-full bg-[#d0cac3] shrink-0" />
+                    <span className="capitalize">Collection</span>
+                </div>
+                
+                <div className="flex items-center gap-1 mt-0.5">
+                    {item.status === 'completed' && <CheckCircle2 size={14} color="#66bb6a" />}
+                    {item.status === 'plan' && <Bookmark size={14} color="#f5a623" />}
+                    <span className="text-[10px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-[4px]" style={{
+                       backgroundColor: item.status === 'completed' ? '#66bb6a1a' : '#f5a6231a',
+                       color: item.status === 'completed' ? '#388e3c' : '#d4840a'
+                    }}>
+                       {item.status}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+  )
 }
 
 function ListCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void, key?: any }) {
