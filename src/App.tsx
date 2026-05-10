@@ -52,6 +52,42 @@ export default function App() {
   const [activeView, setActiveView] = useState<'home' | 'stats'>('home');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Hardware Back Button Support
+  useEffect(() => {
+    const handlePopState = () => {
+      setSelectedId(null);
+      setShowAdd(false);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleSelectId = (id: number) => {
+    window.history.pushState({ overlay: 'detail' }, '');
+    setSelectedId(id);
+  };
+
+  const handleCloseDetail = () => {
+    if (selectedId !== null) {
+      window.history.back();
+    } else {
+      setSelectedId(null);
+    }
+  };
+
+  const handleOpenAdd = () => {
+    window.history.pushState({ overlay: 'add' }, '');
+    setShowAdd(true);
+  };
+
+  const handleCloseAdd = () => {
+    if (showAdd) {
+       window.history.back();
+    } else {
+       setShowAdd(false);
+    }
+  };
+
   useEffect(() => {
     const sub = onSnapshot(collection(db, 'titles'), (snapshot) => {
       const fbItems: TitleItem[] = [];
@@ -135,7 +171,7 @@ export default function App() {
       
       setNameQuery('');
       setPosterQuery('');
-      setShowAdd(false);
+      handleCloseAdd();
       setStatusText('');
     } catch (err: any) {
       console.error("Gemini API Error:", err);
@@ -164,7 +200,7 @@ export default function App() {
       
       setNameQuery('');
       setPosterQuery('');
-      setShowAdd(false);
+      handleCloseAdd();
       setStatusText('');
     } finally {
       setIsLoading(false);
@@ -335,7 +371,7 @@ export default function App() {
         <div className="px-[24px] mb-4">
           <div 
             className="bg-transparent rounded-[24px] flex items-center gap-2 px-4 py-3 cursor-text transition-all active:scale-[0.98] border border-[#e0ddd6] hover:bg-black/5" 
-            onClick={() => setShowAdd(true)}
+            onClick={handleOpenAdd}
           >
             <SearchIcon size={16} className="text-[#9b9890] shrink-0" strokeWidth={2.5} />
             <span className="text-[#9b9890] text-[15px] font-medium w-full text-left tracking-[-0.01em]">Search your list…</span>
@@ -371,7 +407,7 @@ export default function App() {
          <div className="px-[24px] pb-[14px] pt-[20px] text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9b9890] flex-shrink-0 z-10 bg-[#e8e5df] rounded-t-[24px]">
             {filter === 'All' ? 'All Titles' : filter}
          </div>
-         <StackingList items={isInitializing ? null : (filter === 'All' ? items : filteredItems)} isInitializing={isInitializing} onSelect={setSelectedId} />
+         <StackingList items={isInitializing ? null : (filter === 'All' ? items : filteredItems)} isInitializing={isInitializing} onSelect={handleSelectId} />
       </>
       ) : (
         <motion.div 
@@ -479,7 +515,7 @@ export default function App() {
            <ItemDetailView 
               key="detail-view"
               item={selectedItem} 
-              onClose={() => setSelectedId(null)}
+              onClose={handleCloseDetail}
               onUpdate={(updates) => updateItem(selectedItem.id, updates)}
               onRemove={removeItem}
            />
@@ -490,7 +526,7 @@ export default function App() {
       <AnimatePresence>
         {showAdd && (
           <>
-            <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => !isLoading && setShowAdd(false)} className="fixed inset-0 bg-[#1a1917]/30 backdrop-blur-sm z-[60] w-full max-w-[430px] mx-auto" />
+            <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => !isLoading && handleCloseAdd()} className="fixed inset-0 bg-[#1a1917]/30 backdrop-blur-sm z-[60] w-full max-w-[430px] mx-auto" />
             <motion.div 
               initial={{ opacity: 0, y: "100%", scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -501,7 +537,7 @@ export default function App() {
                <div className="w-full bg-[#f0ede8] border border-[#e0ddd6] rounded-[24px] p-6 pb-8 shadow-[0_20px_40px_rgba(0,0,0,0.2)] pointer-events-auto flex flex-col gap-4">
                   <div className="flex justify-between items-center mb-2">
                      <h3 className="font-serif text-[30px] leading-none text-[#1a1714] tracking-[-0.02em]">Add title</h3>
-                     <button onClick={() => !isLoading && setShowAdd(false)} className="text-[#a09890] hover:bg-black/5 active:bg-black/10 cursor-pointer p-2 -mr-2 rounded-full transition-colors"><X size={20}/></button>
+                     <button onClick={() => !isLoading && handleCloseAdd()} className="text-[#a09890] hover:bg-black/5 active:bg-black/10 cursor-pointer p-2 -mr-2 rounded-full transition-colors"><X size={20}/></button>
                   </div>
                   
                   <div className="flex flex-col gap-3 relative">
@@ -544,7 +580,7 @@ export default function App() {
            <span className="text-[10px] font-bold tracking-wide leading-none">Home</span>
         </button>
         
-        <button onClick={() => setShowAdd(true)} className="w-[42px] h-[42px] bg-white rounded-full flex items-center justify-center text-[#1a1917] outline-none hover:scale-105 active:scale-95 transition-all shadow-[0_2px_12px_rgba(255,255,255,0.15)] cursor-pointer mx-1">
+        <button onClick={handleOpenAdd} className="w-[42px] h-[42px] bg-white rounded-full flex items-center justify-center text-[#1a1917] outline-none hover:scale-105 active:scale-95 transition-all shadow-[0_2px_12px_rgba(255,255,255,0.15)] cursor-pointer mx-1">
            <Plus size={22} strokeWidth={3} />
         </button>
         
