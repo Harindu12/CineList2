@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud, Bookmark, BarChart2, ChevronLeft, CheckCircle2, PlayCircle } from 'lucide-react';
+import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud, Bookmark, BarChart2, ChevronLeft, CheckCircle2, PlayCircle, RefreshCw } from 'lucide-react';
 
 import { db } from './firebase';
 import { collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
@@ -282,24 +282,28 @@ export default function App() {
     // We'll process in chunks to avoid overwhelming the API
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      // Only sync if cast is missing or rating looks like an age rating
-      const needsUpdate = !item.cast || item.cast.length === 0 || !item.rating?.includes('/');
+      // Only sync if info is missing
+      const needsUpdate = !item.cast || item.cast.length === 0 || !item.rating?.includes('/') || !item.synopsis || !item.director || !item.genre;
       
       if (needsUpdate) {
         setStatusText(`Syncing [${i+1}/${items.length}] ${item.title}...`);
         try {
           const response = await ai.models.generateContent({
             model: "gemini-3-flash-preview",
-            contents: `Find the official IMDb rating (e.g. "8.6/10") and the main cast members for the movie/TV show: "${item.title}" (${item.year || ''}). Return a raw JSON object only.`,
+            contents: `Find complete details for the movie/TV show: "${item.title}" (${item.year || ''}). Return a raw JSON object only. Provide the IMDb rating (e.g., 8.5/10) rather than the age rating.`,
             config: {
               responseMimeType: "application/json",
               responseSchema: {
                 type: Type.OBJECT,
                 properties: {
-                  rating: { type: Type.STRING, description: "IMDb Rating, e.g., '8.5/10'" },
-                  cast: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Main cast members, up to 5" }
+                  year: { type: Type.STRING },
+                  director: { type: Type.STRING },
+                  genre: { type: Type.STRING, description: "e.g., Action" },
+                  rating: { type: Type.STRING, description: "e.g., 8.5/10" },
+                  cast: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Array of max 3 lead actors" },
+                  synopsis: { type: Type.STRING, description: "Short 1-sentence synopsis" },
                 },
-                required: ["rating", "cast"]
+                required: ["year", "genre", "rating", "cast", "synopsis"]
               }
             }
           });
@@ -307,10 +311,14 @@ export default function App() {
           const jsonText = response.text || "{}";
           const data = JSON.parse(jsonText);
           
-          if (data.rating || (data.cast && data.cast.length > 0)) {
+          if (data.rating || data.synopsis || (data.cast && data.cast.length > 0)) {
             await updateDoc(doc(db, 'titles', item.id.toString()), {
-              rating: data.rating || item.rating,
-              cast: data.cast || item.cast || []
+              year: data.year || item.year,
+              director: data.director || item.director || '',
+              genre: data.genre || item.genre || '',
+              rating: data.rating || item.rating || '',
+              cast: data.cast && data.cast.length > 0 ? data.cast : item.cast || [],
+              synopsis: data.synopsis || item.synopsis || ''
             });
           }
         } catch (err) {
@@ -350,6 +358,14 @@ export default function App() {
             </div>
           )}
           <div className="flex items-center gap-1.5 p-1">
+            <button 
+               onClick={syncMetadata}
+               disabled={isSyncing}
+               className={`w-8 h-8 rounded-full bg-transparent flex items-center justify-center cursor-pointer hover:bg-black/5 active:scale-95 transition-all text-[#9b9890] ${isSyncing ? 'opacity-50' : ''}`}
+               title="Refresh Missing Info"
+            >
+               <RefreshCw size={18} strokeWidth={2} className={isSyncing ? 'animate-spin' : ''} />
+            </button>
             <button 
                onClick={() => fileInputRef.current?.click()}
                className="w-8 h-8 rounded-full bg-transparent flex items-center justify-center cursor-pointer hover:bg-black/5 active:scale-95 transition-all text-[#9b9890]"
@@ -482,8 +498,8 @@ export default function App() {
                         </>
                       ) : (
                         <>
-                          <Star size={10} />
-                          Sync IMDb & Cast
+                          <RefreshCw size={10} />
+                          Refresh Missing Info
                         </>
                       )}
                     </button>
@@ -667,11 +683,11 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
      return (
         <div ref={scrollerRef} className="flex-1 overflow-y-auto no-scrollbar px-[24px] pb-[110px] relative w-full pt-1">
           <div className="pb-[40px]">
-            {[1,2,3,4,5].map((i) => (
+            {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="card-wrap-anchor relative h-[125px]">
                 <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: i + 1 }}>
                    <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
-                      <ListCardSkeleton />
+                      {i % 4 === 0 ? <CollectionCardSkeleton /> : <ListCardSkeleton />}
                    </div>
                 </div>
               </div>
@@ -827,51 +843,59 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
 }
 
 function CollectionCard({ item, isExpanded, onClick }: { item: CollectionItem, isExpanded: boolean, onClick: () => void }) {
+  const completedCount = item.items.filter(i => i.status === 'completed').length;
+  const leftCount = item.items.length - completedCount;
+  const progressPercent = item.items.length > 0 ? Math.round((completedCount / item.items.length) * 100) : 0;
+
   return (
     <div 
         onClick={onClick} 
-        className="relative flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full bg-[#f8f7f5] group active:bg-black/5 hover:bg-black/[0.02] hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out origin-center cursor-pointer border border-[#e0ddd6] rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+        className={`relative flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full bg-white group active:scale-[0.98] hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out cursor-pointer border rounded-[16px] ${isExpanded ? 'border-[#1a1917]/20 shadow-md ring-1 ring-[#1a1917]/5' : 'border-[#e0ddd6]/50 shadow-[0_2px_8px_rgba(0,0,0,0.04)]'}`}
     >
         {/* Stack effect behind the main poster */}
-        <div className="w-[70px] h-[105px] shrink-0 relative flex items-center justify-center text-xl overflow-visible pointer-events-none">
-            <div className={`absolute inset-0 bg-[#e0dbd4] border border-[#d0ccc6] rounded-[10px] transform ${isExpanded ? 'translate-x-1 -rotate-3 translate-y-1' : 'translate-x-1.5 -rotate-6'} transition-all`} />
-            <div className={`absolute inset-0 bg-[#f0ede8] border border-[#d0ccc6] rounded-[10px] transform ${isExpanded ? 'translate-x-0.5 rotate-2 translate-y-0.5' : 'translate-x-[10px] rotate-2'} transition-all`} />
-            <div className={`absolute inset-0 bg-white rounded-[10px] overflow-hidden border border-[#d0ccc6] shadow-sm transition-all z-10 ${isExpanded ? 'scale-[1.02]' : ''}`}>
-                {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : '🍿'}
+        <div className="w-[70px] h-[105px] shrink-0 relative flex items-center justify-center overflow-visible pointer-events-none mx-[4px]">
+            <div className={`absolute inset-0 bg-[#e0dbd4] border border-[#d0ccc6] rounded-[10px] transform ${isExpanded ? 'translate-x-1 -rotate-2' : 'translate-x-1.5 -rotate-6'} shadow-sm transition-all duration-500`} />
+            <div className={`absolute inset-0 bg-[#f0ede8] border border-[#d0ccc6] rounded-[10px] transform ${isExpanded ? 'translate-x-0.5 rotate-1' : 'translate-x-[10px] rotate-3'} shadow-sm transition-all duration-500`} />
+            <div className={`absolute inset-0 bg-white rounded-[10px] overflow-hidden border border-[#e0ddd6] shadow-sm transition-all duration-500 z-10 ${isExpanded ? 'scale-[1.02]' : ''}`}>
+                {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (
+                   <div className="w-full h-full bg-gradient-to-br from-[#ece9e4] to-[#dedbd5] flex items-center justify-center text-3xl">🍿</div>
+                )}
             </div>
             
             <motion.div 
-               animate={{ rotate: isExpanded ? 180 : 0 }}
-               className="absolute -right-3 -bottom-2 bg-[#1a1917] text-white rounded-full p-1 shadow-[0_2px_8px_rgba(0,0,0,0.3)] z-20"
+               animate={{ rotate: isExpanded ? -90 : 0 }}
+               className={`absolute -right-3 -bottom-2 ${isExpanded ? 'bg-[#1a1917] text-white outline outline-2 outline-white' : 'bg-white text-[#1a1917] border border-[#e0ddd6]'} rounded-full p-1 shadow-md z-20 transition-colors duration-300`}
             >
-               <ChevronLeft size={14} className="-rotate-90" strokeWidth={3} />
+               <ChevronLeft size={14} strokeWidth={3} className="-rotate-90" />
             </motion.div>
         </div>
         
-        <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
-            <div className="text-[16px] leading-[1.25] font-serif font-bold mb-1.5 text-[#1a1917] tracking-tight line-clamp-2 pr-2">{item.title}</div>
+        <div className="flex-1 min-w-0 flex flex-col justify-center py-1 ml-2">
+            <div className="text-[11px] uppercase tracking-widest font-bold text-[#b8b5ab] mb-0.5 flex items-center gap-1.5">
+               <List size={12} /> Collection
+            </div>
             
-            <div className="flex flex-col gap-1">
-                <div className="text-[12px] text-[#9b9890] font-medium flex items-center gap-1.5 truncate">
-                    <span className="font-bold">{item.items.length} Titles</span>
+            <div className="text-[15px] leading-[1.25] font-semibold mb-2 text-[#1a1917] tracking-[-0.01em] line-clamp-2 pr-2">{item.title}</div>
+            
+            <div className="flex flex-col mt-auto">
+                <div className="text-[12px] text-[#7a7770] font-medium flex items-center gap-x-1.5 gap-y-1 flex-wrap mb-1.5">
+                    <span className="font-bold text-[#1a1917]">{item.items.length} titles</span>
                     <div className="w-[3px] h-[3px] rounded-full bg-[#d0cac3] shrink-0" />
-                    <span className="capitalize">Collection</span>
+                    <span className="flex items-center gap-1 text-[#388e3c]"><CheckCircle2 size={12} /> {completedCount} Done</span>
+                    <div className="w-[3px] h-[3px] rounded-full bg-[#d0cac3] shrink-0" />
+                    <span className="flex items-center gap-1 text-[#d4840a]"><PlayCircle size={12} /> {leftCount} Left</span>
                 </div>
                 
-                <div className="flex items-center gap-1 mt-0.5">
-                    {item.status === 'completed' && <CheckCircle2 size={14} color="#66bb6a" />}
-                    {item.status === 'plan' && <Bookmark size={14} color="#f5a623" />}
-                    <span className="text-[10px] font-bold tracking-wide uppercase px-1.5 py-0.5 rounded-[4px]" style={{
-                       backgroundColor: item.status === 'completed' ? '#66bb6a1a' : '#f5a6231a',
-                       color: item.status === 'completed' ? '#388e3c' : '#d4840a'
-                    }}>
-                       {item.status}
-                    </span>
+                <div className="flex items-center gap-2">
+                   <div className="flex-1 bg-[#f0ede8] h-1.5 rounded-full overflow-hidden">
+                       <div className="bg-[#1a1917] h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${progressPercent}%` }} />
+                   </div>
+                   <span className="text-[10px] font-bold text-[#1a1917] shrink-0 w-6 text-right leading-none">{progressPercent}%</span>
                 </div>
             </div>
         </div>
     </div>
-  )
+  );
 }
 
 function ListCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void, key?: any }) {
@@ -1158,12 +1182,60 @@ function ListCardSkeleton({ key }: { key?: any }) {
   return (
     <div className="flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full animate-pulse bg-white rounded-[16px] border border-[#e0ddd6]/50 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
        <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0" />
-       <div className="flex-1 flex flex-col justify-center gap-1.5 py-1">
-         <div className="h-[14px] bg-[#e0dbd4] rounded-[4px] w-[85%] mb-1" />
-         <div className="h-[10px] bg-[#e0dbd4]/70 rounded-[4px] w-[45%]" />
-         <div className="h-[10px] bg-[#e0dbd4]/50 rounded-[4px] w-[60%]" />
+       
+       <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
+         <div className="h-[15px] bg-[#e0dbd4] rounded-[4px] w-[85%] mb-2" />
+         
+         <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5">
+               <div className="h-[12px] bg-[#e0dbd4]/80 rounded-[4px] w-[35px]" />
+               <div className="w-[3px] h-[3px] rounded-full bg-[#d0cac3] shrink-0" />
+               <div className="h-[12px] bg-[#e0dbd4]/80 rounded-[4px] w-[45px]" />
+            </div>
+            
+            <div className="flex items-center gap-1.5 mt-0.5">
+               <div className="h-[12px] bg-[#e0dbd4]/60 rounded-[4px] w-[55px]" />
+               <div className="w-[3px] h-[3px] rounded-full bg-[#d0cac3] shrink-0" />
+               <div className="h-[12px] bg-[#e0dbd4]/60 rounded-[4px] w-[30px]" />
+            </div>
+         </div>
        </div>
-       <div className="w-[20px] h-[20px] rounded-full bg-[#e0dbd4]/60 flex items-center shrink-0 ml-1" />
+       <div className="w-[18px] h-[18px] rounded-full bg-[#e0dbd4] flex items-center shrink-0 ml-1 mx-2" />
     </div>
   )
+}
+
+function CollectionCardSkeleton() {
+  return (
+    <div className="relative flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full animate-pulse bg-white rounded-[16px] border border-[#e0ddd6]/50 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+        <div className="w-[70px] h-[105px] shrink-0 relative flex items-center justify-center overflow-hidden mx-[4px]">
+            <div className={`absolute inset-0 bg-[#e0dbd4]/50 rounded-[10px] transform translate-x-1.5 -rotate-6`} />
+            <div className={`absolute inset-0 bg-[#e0dbd4]/80 rounded-[10px] transform translate-x-[10px] rotate-3`} />
+            <div className={`absolute inset-0 bg-[#e0dbd4] rounded-[10px] z-10`} />
+        </div>
+        
+        <div className="flex-1 min-w-0 flex flex-col justify-center py-1 ml-2">
+            <div className="h-[11px] bg-[#e0dbd4] rounded-[3px] w-[65px] mb-1.5" />
+            
+            <div className="h-[16px] bg-[#e0dbd4] rounded-[4px] w-[75%] mb-2.5" />
+            
+            <div className="flex flex-col mt-auto">
+                <div className="flex items-center gap-1.5 mb-2">
+                    <div className="h-[12px] bg-[#e0dbd4]/80 rounded-[3px] w-[45px]" />
+                    <div className="w-[3px] h-[3px] rounded-full bg-[#d0cac3] shrink-0" />
+                    <div className="h-[12px] bg-[#e0dbd4]/80 rounded-[3px] w-[50px]" />
+                    <div className="w-[3px] h-[3px] rounded-full bg-[#d0cac3] shrink-0" />
+                    <div className="h-[12px] bg-[#e0dbd4]/80 rounded-[3px] w-[40px]" />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                   <div className="flex-1 bg-[#f0ede8] h-1.5 rounded-full overflow-hidden">
+                       <div className="bg-[#e0dbd4] h-full rounded-full w-1/3" />
+                   </div>
+                   <div className="w-5 h-[10px] bg-[#e0dbd4] rounded-[3px]" />
+                </div>
+            </div>
+        </div>
+    </div>
+  );
 }
