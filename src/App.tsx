@@ -432,22 +432,22 @@ export default function App() {
         )}
       </div>
 
-      <div className="flex-1 bg-[#e8e5df] rounded-t-[24px] shadow-[0_-4px_16px_rgba(0,0,0,0.02)] flex flex-col min-h-0 relative z-10 w-full mt-2">
-      {activeView === 'home' ? (
-      <>
-         <div className="px-[24px] pb-[14px] pt-[20px] text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9b9890] flex-shrink-0 z-10 bg-[#e8e5df] rounded-t-[24px]">
-            {filter === 'All' ? (searchQuery ? 'Search Results' : 'All Titles') : filter}
-         </div>
-         <StackingList items={isInitializing ? null : filteredItems} isInitializing={isInitializing} onSelect={handleSelectId} />
-      </>
-      ) : (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="flex-1 overflow-y-auto no-scrollbar pb-[110px] px-[24px] pt-8"
-        >
-            <motion.h2 
+      <div className="flex-1 bg-[#e8e5df] rounded-t-[24px] shadow-[0_-4px_16px_rgba(0,0,0,0.02)] flex flex-col min-h-0 relative z-10 w-full mt-2 relative">
+        <div className={`absolute inset-0 flex flex-col ${activeView === 'home' ? 'z-10' : 'z-0 opacity-0 pointer-events-none'}`}>
+           <div className="px-[24px] pb-[14px] pt-[20px] text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9b9890] flex-shrink-0 bg-[#e8e5df] rounded-t-[24px]">
+              {filter === 'All' ? (searchQuery ? 'Search Results' : 'All Titles') : filter}
+           </div>
+           <StackingList items={isInitializing ? null : filteredItems} isInitializing={isInitializing} onSelect={handleSelectId} />
+        </div>
+        
+        {activeView === 'stats' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="absolute inset-0 flex flex-col overflow-y-auto no-scrollbar pb-[110px] px-[24px] pt-8 z-20 bg-[#e8e5df] rounded-t-[24px]"
+          >
+              <motion.h2 
                initial={{ opacity: 0, y: 15 }} 
                animate={{ opacity: 1, y: 0 }} 
                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
