@@ -389,43 +389,47 @@ export default function App() {
           </div>
         </div>
 
-        {/* SEARCH BAR */}
-        <div className="px-[24px] mb-4">
-          <div 
-            className="bg-white rounded-[24px] flex items-center gap-2 px-4 py-3 cursor-text transition-all border border-[#e0ddd6] shadow-[0_1px_3px_rgba(0,0,0,0.06)] focus-within:ring-2 focus-within:ring-[#1a1917]/10 focus-within:border-[#1a1917]/20" 
-          >
-            <SearchIcon size={16} className="text-[#9b9890] shrink-0" strokeWidth={2.5} />
-            <input 
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search your list…"
-              className="bg-transparent border-none outline-none text-[#1a1917] text-[15px] font-medium w-full tracking-[-0.01em] placeholder:text-[#9b9890]"
-            />
-          </div>
-        </div>
-
-        {/* CAPSULE TABS */}
-        <div className="flex items-center px-[24px] pb-4 hidden-scrollbar overflow-x-auto relative z-10 w-full">
-           <div className="flex items-center gap-2 w-full pr-4 relative">
-            {['All', 'Watching', 'Plan to Watch', 'Completed'].map((f) => (
-              <button 
-                key={f} 
-                onClick={() => setFilter(f)} 
-                className={`text-[13px] font-medium px-4 py-2 cursor-pointer whitespace-nowrap shrink-0 transition-colors relative z-10 outline-none ${filter === f ? 'text-white font-bold' : 'text-[#9b9890] hover:text-[#1a1917]'}`}
+        {activeView === 'home' && (
+          <>
+            {/* SEARCH BAR */}
+            <div className="px-[24px] mb-4">
+              <div 
+                className="bg-white rounded-[24px] flex items-center gap-2 px-4 py-3 cursor-text transition-all border border-[#e0ddd6] shadow-[0_1px_3px_rgba(0,0,0,0.06)] focus-within:ring-2 focus-within:ring-[#1a1917]/10 focus-within:border-[#1a1917]/20" 
               >
-                {filter === f && (
-                   <motion.div 
-                     layoutId="activeFilter" 
-                     className="absolute inset-0 bg-[#1a1917] rounded-full -z-10"
-                     transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
-                   />
-                )}
-                {f}
-              </button>
-            ))}
-           </div>
-        </div>
+                <SearchIcon size={16} className="text-[#9b9890] shrink-0" strokeWidth={2.5} />
+                <input 
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search your list…"
+                  className="bg-transparent border-none outline-none text-[#1a1917] text-[15px] font-medium w-full tracking-[-0.01em] placeholder:text-[#9b9890]"
+                />
+              </div>
+            </div>
+
+            {/* CAPSULE TABS */}
+            <div className="flex items-center px-[24px] pb-4 hidden-scrollbar overflow-x-auto relative z-10 w-full">
+               <div className="flex items-center gap-2 w-full pr-4 relative">
+                {['All', 'Watching', 'Plan to Watch', 'Completed'].map((f) => (
+                  <button 
+                    key={f} 
+                    onClick={() => setFilter(f)} 
+                    className={`text-[13px] font-medium px-4 py-2 cursor-pointer whitespace-nowrap shrink-0 transition-colors relative z-10 outline-none ${filter === f ? 'text-white font-bold' : 'text-[#9b9890] hover:text-[#1a1917]'}`}
+                  >
+                    {filter === f && (
+                       <motion.div 
+                         layoutId="activeFilter" 
+                         className="absolute inset-0 bg-[#1a1917] rounded-full -z-10"
+                         transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
+                       />
+                    )}
+                    {f}
+                  </button>
+                ))}
+               </div>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="flex-1 bg-[#e8e5df] rounded-t-[24px] shadow-[0_-4px_16px_rgba(0,0,0,0.02)] flex flex-col min-h-0 relative z-10 w-full mt-2">
