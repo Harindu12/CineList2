@@ -798,8 +798,10 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
                                className="card-wrap-anchor relative"
                              >
                                 <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
-                                   <div className="card-inner relative animate-list-item" style={{ animationDelay: `${Math.min(globalIndex, 15) * 0.03 + 0.02}s`, transformOrigin: 'top center', willChange: 'transform, opacity' }}>
-                                      <CollectionCard item={item} isExpanded={isExpanded} onClick={() => setExpandedColId(isExpanded ? null : item.id)} />
+                                   <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
+                                      <div className="animate-list-item" style={{ animationDelay: `${Math.min(globalIndex, 15) * 0.03 + 0.02}s` }}>
+                                         <CollectionCard item={item} isExpanded={isExpanded} onClick={() => setExpandedColId(isExpanded ? null : item.id)} />
+                                      </div>
                                    </div>
                                 </div>
                              </motion.div>
@@ -841,8 +843,10 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
                          className="card-wrap-anchor relative"
                        >
                          <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
-                            <div className="card-inner relative animate-list-item" style={{ animationDelay: `${Math.min(globalIndex, 15) * 0.03 + 0.02}s`, transformOrigin: 'top center', willChange: 'transform, opacity' }}>
-                               <ListCard item={item} index={globalIndex} onClick={() => onSelect(item.id)} />
+                            <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
+                               <div className="animate-list-item" style={{ animationDelay: `${Math.min(globalIndex, 15) * 0.03 + 0.02}s` }}>
+                                  <ListCard item={item} index={globalIndex} onClick={() => onSelect(item.id)} />
+                               </div>
                             </div>
                          </div>
                        </motion.div>
