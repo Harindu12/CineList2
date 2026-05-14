@@ -46,6 +46,7 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [nameQuery, setNameQuery] = useState('');
   const [posterQuery, setPosterQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [filter, setFilter] = useState('All');
@@ -223,8 +224,13 @@ export default function App() {
      else if (filter === 'Completed') filtered = items.filter(i => i.status === 'completed');
      else if (filter === 'Movies') filtered = items.filter(i => i.type === 'movie');
      else if (filter === 'Series') filtered = items.filter(i => i.type === 'tv');
+     
+     if (searchQuery.trim() !== '') {
+       filtered = filtered.filter(i => i.title.toLowerCase().includes(searchQuery.toLowerCase()));
+     }
+     
      return filtered;
-  }, [items, filter]);
+  }, [items, filter, searchQuery]);
 
   // Export from Firestore just to match schema
   const handleExport = () => {
@@ -386,11 +392,16 @@ export default function App() {
         {/* SEARCH BAR */}
         <div className="px-[24px] mb-4">
           <div 
-            className="bg-transparent rounded-[24px] flex items-center gap-2 px-4 py-3 cursor-text transition-all active:scale-[0.98] border border-[#e0ddd6] hover:bg-black/5" 
-            onClick={handleOpenAdd}
+            className="bg-white rounded-[24px] flex items-center gap-2 px-4 py-3 cursor-text transition-all border border-[#e0ddd6] shadow-[0_1px_3px_rgba(0,0,0,0.06)] focus-within:ring-2 focus-within:ring-[#1a1917]/10 focus-within:border-[#1a1917]/20" 
           >
             <SearchIcon size={16} className="text-[#9b9890] shrink-0" strokeWidth={2.5} />
-            <span className="text-[#9b9890] text-[15px] font-medium w-full text-left tracking-[-0.01em]">Search your list…</span>
+            <input 
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search your list…"
+              className="bg-transparent border-none outline-none text-[#1a1917] text-[15px] font-medium w-full tracking-[-0.01em] placeholder:text-[#9b9890]"
+            />
           </div>
         </div>
 
@@ -421,9 +432,9 @@ export default function App() {
       {activeView === 'home' ? (
       <>
          <div className="px-[24px] pb-[14px] pt-[20px] text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9b9890] flex-shrink-0 z-10 bg-[#e8e5df] rounded-t-[24px]">
-            {filter === 'All' ? 'All Titles' : filter}
+            {filter === 'All' ? (searchQuery ? 'Search Results' : 'All Titles') : filter}
          </div>
-         <StackingList items={isInitializing ? null : (filter === 'All' ? items : filteredItems)} isInitializing={isInitializing} onSelect={handleSelectId} />
+         <StackingList items={isInitializing ? null : filteredItems} isInitializing={isInitializing} onSelect={handleSelectId} />
       </>
       ) : (
         <motion.div 
