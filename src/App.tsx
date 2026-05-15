@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud, Bookmark, BarChart2, ChevronLeft, CheckCircle2, PlayCircle, RefreshCw } from 'lucide-react';
+import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud, Bookmark, BarChart2, ChevronLeft, CheckCircle2, PlayCircle, RefreshCw, Edit3, Menu, Upload } from 'lucide-react';
 
-import { db } from './firebase';
-import { collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { db, auth } from './firebase';
+import { collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc, getDocs } from 'firebase/firestore';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { AuthView } from './AuthView';
 
 const STORAGE_KEY = 'cinelist_v1';
 
@@ -38,7 +40,36 @@ interface TitleItem {
   progress?: number;
 }
 
+const AvatarDisplay = ({ avatar, size = 32 }: { avatar?: string, size?: number }) => {
+  const isUrl = avatar?.startsWith('http://') || avatar?.startsWith('https://') || avatar?.startsWith('data:image/');
+  
+  if (isUrl) {
+    return (
+      <img 
+        src={avatar} 
+        alt="Avatar" 
+        className="rounded-full object-cover shadow-inner"
+        style={{ width: size, height: size }}
+        referrerPolicy="no-referrer"
+      />
+    );
+  }
+  
+  return (
+    <div 
+      className="bg-[#f0ede8] rounded-full flex items-center justify-center shadow-inner shrink-0"
+      style={{ width: size, height: size, fontSize: size / 2 }}
+    >
+      {avatar || '🧑'}
+    </div>
+  );
+};
+
 export default function App() {
+  const [currentProfile, setCurrentProfile] = useState<string | null>(null);
+  const [viewingProfile, setViewingProfile] = useState<string | null>(null);
+  const [showProfileSwitcher, setShowProfileSwitcher] = useState(false);
+  const [showMainMenu, setShowMainMenu] = useState(false);
   const [items, setItems] = useState<TitleItem[]>([]);
   const [isInitializing, setIsInitializing] = useState(true);
   
@@ -47,11 +78,103 @@ export default function App() {
   const [nameQuery, setNameQuery] = useState('');
   const [posterQuery, setPosterQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchUserQuery, setSearchUserQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [filter, setFilter] = useState('All');
   const [activeView, setActiveView] = useState<'home' | 'stats'>('home');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editAvatar, setEditAvatar] = useState('');
+  const [allUsers, setAllUsers] = useState<{username: string, displayName?: string, avatar?: string}[]>([]);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_SIZE = 150;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_SIZE) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          }
+        } else {
+          if (height > MAX_SIZE) {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setEditAvatar(dataUrl);
+        }
+      };
+      if (event.target?.result) {
+        img.src = event.target.result as string;
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, async (user) => {
+      if (user && user.email) {
+        const username = user.email.split('@')[0];
+        setCurrentProfile(username);
+        // Default to viewing own profile if no viewing profile is set
+        setViewingProfile(prev => prev || username);
+        
+        // Ensure user exists in collection
+        try {
+          await setDoc(doc(db, 'users', username), {
+            username: username,
+            displayName: user.displayName || username,
+          }, { merge: true });
+        } catch (e) {
+           console.error("Error updating user document:", e);
+        }
+      } else {
+        setCurrentProfile(null);
+      }
+      setIsInitializing(false);
+    });
+
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+       const usersMap: any[] = [];
+       snapshot.forEach(doc => {
+          if (doc.id !== 'undefined' && doc.data().username) {
+             usersMap.push({
+                username: doc.data().username,
+                displayName: doc.data().displayName || doc.data().username,
+                avatar: doc.data().avatar
+             });
+          }
+       });
+       setAllUsers(usersMap);
+    }, (error) => {
+       console.error("Error fetching users:", error);
+    });
+
+    return () => {
+       unsubAuth();
+       unsubUsers();
+    };
+  }, []);
 
   // Hardware Back Button Support
   useEffect(() => {
@@ -90,15 +213,79 @@ export default function App() {
   };
 
   useEffect(() => {
-    const sub = onSnapshot(collection(db, 'titles'), (snapshot) => {
+    if (!viewingProfile) return;
+    setIsInitializing(true);
+    let migrated = false;
+    
+    // Auto-migrate old titles to mahiru's profile
+    if (viewingProfile === 'mahiru') {
+      const migrateTitles = async () => {
+        try {
+          const oldTitlesSnapshot = await getDocs(collection(db, 'titles'));
+          if (!oldTitlesSnapshot.empty) {
+            for (const document of oldTitlesSnapshot.docs) {
+              const data = document.data();
+              await setDoc(doc(db, 'users', 'mahiru', 'watchlist', document.id), data);
+              // Clean up old titles after migrating
+              try {
+                await deleteDoc(doc(db, 'titles', document.id));
+              } catch(e) {
+                console.log(e);
+              }
+            }
+          }
+          
+          // Legacy check: localStorage migration
+          const legacyLocal = localStorage.getItem('cinelist_v1');
+          if (legacyLocal) {
+            try {
+              const parsed = JSON.parse(legacyLocal);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                 for (const item of parsed) {
+                    await setDoc(doc(db, 'users', 'mahiru', 'watchlist', String(item.id)), item);
+                 }
+                 // Optional: clean up so we don't spam writes
+                 localStorage.removeItem('cinelist_v1');
+              }
+            } catch (e) {
+               console.log("Error parsing legacy local storage");
+            }
+          }
+        } catch (e) {
+          console.error("Migration error:", e)
+        }
+      };
+      migrateTitles();
+    }
+
+    const sub = onSnapshot(collection(db, 'users', viewingProfile, 'watchlist'), (snapshot) => {
       const fbItems: TitleItem[] = [];
+      const seenTitles = new Set();
+      const duplicatesToDelete: string[] = [];
+
       snapshot.forEach(doc => {
         const data = doc.data();
+        const titleKey = data.title?.toLowerCase().trim();
+        
+        if (titleKey && seenTitles.has(titleKey)) {
+          duplicatesToDelete.push(doc.id);
+          return;
+        }
+        if (titleKey) seenTitles.add(titleKey);
+
         fbItems.push({
           ...data,
           id: parseInt(doc.id, 10),
         } as TitleItem);
       });
+
+      // Cleanup duplicates in Firebase silently
+      if (duplicatesToDelete.length > 0) {
+        duplicatesToDelete.forEach(id => {
+          deleteDoc(doc(db, 'users', viewingProfile, 'watchlist', id)).catch(console.error);
+        });
+      }
+
       // Sort by creation time (id) descending
       fbItems.sort((a, b) => b.id - a.id);
       setItems(fbItems);
@@ -106,7 +293,7 @@ export default function App() {
     });
     
     return () => sub();
-  }, []);
+  }, [viewingProfile]);
 
   const handleAdd = async () => {
     if (!nameQuery.trim()) return;
@@ -168,7 +355,7 @@ export default function App() {
         newItem.poster = posterQuery.trim();
       }
 
-      await setDoc(doc(db, 'titles', id.toString()), newItem);
+      await setDoc(doc(db, 'users', currentProfile!, 'watchlist', id.toString()), newItem);
       
       setNameQuery('');
       setPosterQuery('');
@@ -197,7 +384,7 @@ export default function App() {
          newItem.poster = posterQuery.trim();
       }
       
-      await setDoc(doc(db, 'titles', id.toString()), newItem);
+      await setDoc(doc(db, 'users', currentProfile!, 'watchlist', id.toString()), newItem);
       
       setNameQuery('');
       setPosterQuery('');
@@ -209,11 +396,11 @@ export default function App() {
   };
 
   const updateItem = async (id: number, updates: Partial<TitleItem>) => {
-    await updateDoc(doc(db, 'titles', id.toString()), updates);
+    await updateDoc(doc(db, 'users', currentProfile!, 'watchlist', id.toString()), updates);
   };
 
   const removeItem = async (id: number) => {
-    await deleteDoc(doc(db, 'titles', id.toString()));
+    await deleteDoc(doc(db, 'users', currentProfile!, 'watchlist', id.toString()));
   };
 
   // Filtering
@@ -261,7 +448,7 @@ export default function App() {
           // Push to cloud db
           for (let item of parsed) {
             const tempId = item.id || Date.now();
-            await setDoc(doc(db, 'titles', tempId.toString()), {
+            await setDoc(doc(db, 'users', currentProfile!, 'watchlist', tempId.toString()), {
               ...item,
               id: tempId
             });
@@ -318,7 +505,7 @@ export default function App() {
           const data = JSON.parse(jsonText);
           
           if (data.rating || data.synopsis || (data.cast && data.cast.length > 0)) {
-            await updateDoc(doc(db, 'titles', item.id.toString()), {
+            await updateDoc(doc(db, 'users', currentProfile!, 'watchlist', item.id.toString()), {
               year: data.year || item.year,
               director: data.director || item.director || '',
               genre: data.genre || item.genre || '',
@@ -346,48 +533,66 @@ export default function App() {
 
   const selectedItem = items.find(i => i.id === selectedId);
 
+  if (isInitializing && !currentProfile) {
+     return <div className="h-[100dvh] flex items-center justify-center bg-[#f0ede8]"><div className="w-6 h-6 border-2 border-[#1a1917]/20 border-t-[#1a1917] rounded-full animate-spin" /></div>;
+  }
+
+  if (!currentProfile) {
+     return <AuthView />;
+  }
+
+  const isReadOnly = viewingProfile !== currentProfile;
+  const currentUserObj = allUsers.find(u => u.username === currentProfile);
+  const meEmoji = currentUserObj?.avatar || '🧑';
+  const currentUserDisplayName = currentUserObj?.displayName || currentProfile;
+
   return (
     <div className="relative h-[100dvh] bg-[#f0ede8] w-full max-w-[430px] mx-auto overflow-hidden font-sans flex flex-col">
       <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" />
 
       {/* HEADER - FLUSH WITH BACKGROUND */}
-      <div className="flex-shrink-0 pt-8 transition-all pb-0">
+      <div className="flex-shrink-0 pt-6 transition-all pb-0">
         
         {/* TOP ROW: TITLE & SETTINGS/ACTIONS */}
-        <div className="px-[24px] flex items-center justify-between mb-4">
-          <div className="font-serif text-[32px] tracking-[-0.03em] leading-none text-[#1a1917] font-bold">
+        <div className="px-[24px] flex items-center justify-between mb-2 relative h-12">
+          {/* Menu Button (Left) */}
+          <button 
+             onClick={() => setShowMainMenu(true)}
+             className="w-10 h-10 -ml-2 rounded-full flex items-center justify-center text-[#1a1917] hover:bg-black/5 active:bg-black/10 transition-colors cursor-pointer"
+          >
+             <Menu size={24} strokeWidth={2.5} />
+          </button>
+
+          {/* Title (Center) */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 font-serif text-[32px] tracking-[-0.03em] leading-none text-[#1a1917] font-bold pointer-events-none">
              Watch<em className="italic ml-[1px]">list</em>
           </div>
+
           {statusText && (
-            <div className="absolute left-1/2 -translate-x-1/2 top-4 bg-[#1a1917]/10 px-3 py-1 rounded-full backdrop-blur-sm transition-all animate-pulse">
+            <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-[#1a1917]/10 px-3 py-1 rounded-full backdrop-blur-sm transition-all animate-pulse z-20">
                <span className="text-[10px] font-bold text-[#1a1917] whitespace-nowrap">{statusText}</span>
             </div>
           )}
-          <div className="flex items-center gap-1.5 p-1">
-            <button 
-               onClick={syncMetadata}
-               disabled={isSyncing}
-               className={`w-8 h-8 rounded-full bg-transparent flex items-center justify-center cursor-pointer hover:bg-black/5 active:scale-95 transition-all text-[#9b9890] ${isSyncing ? 'opacity-50' : ''}`}
-               title="Refresh Missing Info"
-            >
-               <RefreshCw size={18} strokeWidth={2} className={isSyncing ? 'animate-spin' : ''} />
-            </button>
-            <button 
-               onClick={() => fileInputRef.current?.click()}
-               className="w-8 h-8 rounded-full bg-transparent flex items-center justify-center cursor-pointer hover:bg-black/5 active:scale-95 transition-all text-[#9b9890]"
-               title="Import Watchlist Data"
-            >
-               <UploadCloud size={18} strokeWidth={2} />
-            </button>
-            <button 
-               onClick={handleExport}
-               className="w-8 h-8 rounded-full bg-transparent flex items-center justify-center cursor-pointer hover:bg-black/5 active:scale-95 transition-all text-[#9b9890]"
-               title="Export Cloud Data"
-            >
-               <Download size={18} strokeWidth={2} />
-            </button>
+
+          {/* Avatar (Right) */}
+          <div className="flex items-center gap-1.5 p-1 -mr-2">
+             <div 
+               className="cursor-pointer active:scale-95 transition-transform border border-[#e0ddd6] rounded-full shadow-sm"
+               onClick={() => setShowProfileSwitcher(true)}
+             >
+                <AvatarDisplay avatar={meEmoji} size={36} />
+             </div>
           </div>
         </div>
+
+         <div className="px-[24px] mb-4 flex">
+           {isReadOnly && (
+              <div className="bg-[#1a1917] text-white px-4 py-2 rounded-[14px] text-[13px] font-medium flex items-center justify-between shadow-[0_4px_12px_rgba(0,0,0,0.1)] w-full">
+                 <span className="flex items-center gap-2">Viewing <strong className="text-white capitalize">{viewingProfile}</strong>'s list</span>
+                 <button onClick={() => setViewingProfile(currentProfile)} className="bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-full text-[#ffffff] transition-colors border border-white/10 active:scale-95 flex items-center justify-center font-semibold" style={{ fontSize: '11px' }}>Return</button>
+              </div>
+           )}
+         </div>
 
         {activeView === 'home' && (
           <>
@@ -437,7 +642,7 @@ export default function App() {
            <div className="px-[24px] pb-[14px] pt-[20px] text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9b9890] flex-shrink-0 bg-[#e8e5df] rounded-t-[24px]">
               {filter === 'All' ? (searchQuery ? 'Search Results' : 'All Titles') : filter}
            </div>
-           <StackingList items={isInitializing ? null : filteredItems} isInitializing={isInitializing} onSelect={handleSelectId} />
+           <StackingList items={isInitializing ? null : filteredItems} isInitializing={isInitializing} onSelect={handleSelectId} isReadOnly={isReadOnly} currentProfile={currentProfile} />
         </div>
         
         {activeView === 'stats' && (
@@ -549,6 +754,7 @@ export default function App() {
               onClose={handleCloseDetail}
               onUpdate={(updates) => updateItem(selectedItem.id, updates)}
               onRemove={removeItem}
+              isReadOnly={isReadOnly}
            />
         )}
       </AnimatePresence>
@@ -604,6 +810,236 @@ export default function App() {
         )}
       </AnimatePresence>
 
+      {/* MAIN MENU OVERLAY */}
+      <AnimatePresence>
+        {showMainMenu && (
+          <>
+             <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => setShowMainMenu(false)} className="fixed inset-0 bg-[#1a1917]/40 backdrop-blur-sm z-[80] w-full max-w-[430px] mx-auto cursor-pointer" />
+             <motion.div 
+               initial={{ opacity: 0, scale: 0.95, y: -10 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.95, y: -10 }}
+               transition={{ type: "spring", stiffness: 300, damping: 30 }}
+               className="absolute top-[80px] left-[20px] bg-[#f0ede8] rounded-[24px] p-5 z-[90] shadow-[0_16px_40px_rgba(0,0,0,0.2)] w-[260px] border border-[#e0ddd6] flex flex-col gap-4 origin-top-left"
+             >
+                <div className="flex items-center justify-between mb-2">
+                   <h2 className="text-[20px] font-serif font-bold text-[#1a1917]">Menu</h2>
+                   <button onClick={() => setShowMainMenu(false)} className="p-1 rounded-full hover:bg-black/5 active:scale-95 transition-all text-[#a09890] hover:text-[#1a1917] cursor-pointer -mr-2">
+                     <X size={20} strokeWidth={2.5} />
+                   </button>
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                   <button 
+                      onClick={() => {
+                         setShowMainMenu(false);
+                         handleExport();
+                      }}
+                      className="w-full flex items-center gap-3 p-4 rounded-[16px] bg-white border border-[#e0ddd6]/50 hover:border-[#e0ddd6] hover:shadow-sm transition-all active:scale-[0.98] text-left cursor-pointer group"
+                   >
+                      <div className="w-10 h-10 bg-[#f0ede8] rounded-full flex items-center justify-center text-[#1a1917] group-hover:bg-[#1a1917] group-hover:text-white transition-colors shrink-0">
+                         <Download size={18} strokeWidth={2.5} />
+                      </div>
+                      <div className="flex flex-col">
+                         <span className="font-semibold text-[#1a1917] text-[15px]">Extract List</span>
+                         <span className="text-[#9b9890] text-[12px] font-medium leading-none">Download to JSON</span>
+                      </div>
+                   </button>
+                   
+                   <button 
+                      onClick={() => {
+                         setShowMainMenu(false);
+                         fileInputRef.current?.click();
+                      }}
+                      className="w-full flex items-center gap-3 p-4 rounded-[16px] bg-white border border-[#e0ddd6]/50 hover:border-[#e0ddd6] hover:shadow-sm transition-all active:scale-[0.98] text-left cursor-pointer group"
+                   >
+                      <div className="w-10 h-10 bg-[#f0ede8] rounded-full flex items-center justify-center text-[#1a1917] group-hover:bg-[#1a1917] group-hover:text-white transition-colors shrink-0">
+                         <Upload size={18} strokeWidth={2.5} />
+                      </div>
+                      <div className="flex flex-col">
+                         <span className="font-semibold text-[#1a1917] text-[15px]">Upload List</span>
+                         <span className="text-[#9b9890] text-[12px] font-medium leading-none">Import from JSON</span>
+                      </div>
+                   </button>
+                   
+                   <button 
+                      onClick={() => {
+                         setShowMainMenu(false);
+                         syncMetadata();
+                      }}
+                      disabled={isSyncing}
+                      className="w-full flex items-center gap-3 p-4 rounded-[16px] bg-white border border-[#e0ddd6]/50 hover:border-[#e0ddd6] hover:shadow-sm transition-all active:scale-[0.98] text-left cursor-pointer group disabled:opacity-50"
+                   >
+                      <div className="w-10 h-10 bg-[#f0ede8] rounded-full flex items-center justify-center text-[#1a1917] group-hover:bg-[#1a1917] group-hover:text-white transition-colors shrink-0">
+                         <RefreshCw size={18} strokeWidth={2.5} className={isSyncing ? 'animate-spin' : ''} />
+                      </div>
+                      <div className="flex flex-col">
+                         <span className="font-semibold text-[#1a1917] text-[15px]">Refresh Tools</span>
+                         <span className="text-[#9b9890] text-[12px] font-medium leading-none">Sync missing images</span>
+                      </div>
+                   </button>
+                </div>
+             </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* USER SETTINGS OVERLAY */}
+      <AnimatePresence>
+        {showProfileSwitcher && (
+          <>
+             <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => setShowProfileSwitcher(false)} className="fixed inset-0 bg-[#1a1917]/40 backdrop-blur-sm z-[80] w-full max-w-[430px] mx-auto" />
+             <motion.div 
+               initial={{ opacity: 0, scale: 0.95, y: 10 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.95, y: 10 }}
+               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#f0ede8] rounded-[28px] p-5 z-[90] shadow-[0_16px_40px_rgba(0,0,0,0.2)] w-[280px] border border-[#e0ddd6] flex flex-col gap-3"
+             >
+                <div className="flex flex-col items-center gap-2 mb-4">
+                  <div className="relative group overflow-hidden border border-[#e0ddd6] rounded-full shadow-sm mb-0">
+                     <AvatarDisplay avatar={meEmoji} size={64} />
+                     <button 
+                        onClick={() => {
+                           setShowProfileSwitcher(false);
+                           setEditDisplayName(currentUserDisplayName!);
+                           setEditAvatar(meEmoji);
+                           setShowEditProfile(true);
+                        }}
+                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                     >
+                        <Edit3 size={20} className="text-white" />
+                     </button>
+                  </div>
+                  <span className="font-bold text-[#1a1917] text-[18px] capitalize">{currentUserDisplayName}</span>
+                </div>
+                
+                <div className="w-full h-[1px] bg-[#e0ddd6] mb-2" />
+
+                 <div className="flex flex-col gap-2 mb-2">
+                    <span className="text-[12px] font-bold text-[#9b9890] uppercase tracking-wider ml-1">View list from</span>
+                    <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto no-scrollbar pr-1">
+                       {allUsers.filter(u => u.username !== currentProfile).length === 0 ? (
+                          <div className="text-[13px] text-[#9b9890] p-2 text-center">No other users yet</div>
+                       ) : (
+                          allUsers.filter(u => u.username !== currentProfile).map(u => (
+                             <button
+                                key={u.username}
+                                onClick={() => {
+                                   setViewingProfile(u.username);
+                                   setShowProfileSwitcher(false);
+                                }}
+                                className="flex items-center gap-3 p-3 rounded-[16px] bg-white border border-[#e0ddd6]/50 hover:border-[#e0ddd6] hover:shadow-sm transition-all active:scale-[0.98] w-full text-left"
+                             >
+                                <AvatarDisplay avatar={u.avatar} size={32} />
+                                <span className="font-medium text-[#1a1917] text-[14px] truncate capitalize">{u.displayName || u.username}</span>
+                             </button>
+                          ))
+                       )}
+                    </div>
+                 </div>
+                 
+                 <div className="w-full h-[1px] bg-[#e0ddd6] mt-2 mb-2" />
+
+                <button 
+                  onClick={() => {
+                     setShowProfileSwitcher(false);
+                     setEditDisplayName(currentUserDisplayName!);
+                     setEditAvatar(meEmoji);
+                     setShowEditProfile(true);
+                  }}
+                  className="w-full py-2.5 rounded-[12px] text-[#1a1917] font-semibold text-[14px] bg-[#e8e5df] hover:bg-[#e0ddd6] transition-colors mb-2 cursor-pointer"
+                >
+                   Edit Profile
+                </button>
+
+                <button
+                   onClick={() => {
+                      signOut(auth);
+                      setShowProfileSwitcher(false);
+                   }}
+                   className="w-full bg-[#1a1917] text-white font-semibold py-[14px] rounded-[16px] shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:opacity-90 disabled:opacity-50 text-[14px] transition-opacity"
+                >
+                   Log Out
+                </button>
+             </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* EDIT PROFILE OVERLAY */}
+      <AnimatePresence>
+        {showEditProfile && (
+          <>
+             <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => setShowEditProfile(false)} className="fixed inset-0 bg-[#1a1917]/40 backdrop-blur-sm z-[80] w-full max-w-[430px] mx-auto cursor-pointer" />
+             <motion.div 
+               initial={{ opacity: 0, scale: 0.95, y: 10 }}
+               animate={{ opacity: 1, scale: 1, y: 0 }}
+               exit={{ opacity: 0, scale: 0.95, y: 10 }}
+               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#f0ede8] rounded-[28px] p-5 z-[90] shadow-[0_16px_40px_rgba(0,0,0,0.2)] w-[280px] border border-[#e0ddd6] flex flex-col gap-3"
+             >
+                <div className="flex items-center justify-between mb-4">
+                   <h2 className="text-[20px] font-serif font-bold text-[#1a1917]">Edit Profile</h2>
+                   <button onClick={() => setShowEditProfile(false)} className="p-1 rounded-full hover:bg-black/5 active:scale-95 transition-all text-[#a09890] hover:text-[#1a1917] cursor-pointer">
+                     <X size={20} strokeWidth={2.5} />
+                   </button>
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                   <label className="text-[12px] font-bold text-[#9b9890] uppercase tracking-wider ml-1">Avatar (Emoji, URL, or Image)</label>
+                   <div className="flex items-center gap-2">
+                     <div className="flex-1 relative">
+                       <input 
+                         type="text"
+                         value={editAvatar}
+                         onChange={(e) => setEditAvatar(e.target.value)}
+                         placeholder="🧑 or https://..."
+                         className="w-full bg-white border border-[#e0ddd6] rounded-[14px] px-4 py-3 text-[14px] text-left outline-none focus:border-[#c5c2bb] focus:ring-2 focus:ring-[#1a1917]/10 placeholder:text-[#a09890]"
+                       />
+                     </div>
+                     <label className="shrink-0 bg-[#e8e5df] text-[#1a1917] p-3 rounded-[14px] cursor-pointer hover:bg-[#e0ddd6] transition-colors border border-[#e0ddd6]">
+                       <ImagePlus size={20} />
+                       <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+                     </label>
+                   </div>
+                </div>
+                
+                <div className="flex flex-col gap-2 mb-4">
+                   <label className="text-[12px] font-bold text-[#9b9890] uppercase tracking-wider ml-1">Display Name</label>
+                   <input 
+                     type="text"
+                     value={editDisplayName}
+                     onChange={(e) => setEditDisplayName(e.target.value)}
+                     placeholder="Your name"
+                     className="w-full bg-white border border-[#e0ddd6] rounded-[14px] px-4 py-3 text-[14px] outline-none focus:border-[#c5c2bb] focus:ring-2 focus:ring-[#1a1917]/10 placeholder:text-[#a09890]"
+                   />
+                </div>
+                
+                <button
+                   onClick={async () => {
+                      setIsLoading(true);
+                      try {
+                         await setDoc(doc(db, 'users', currentProfile!), {
+                            username: currentProfile!,
+                            displayName: editDisplayName.trim() || currentProfile!,
+                            avatar: editAvatar.trim() || '🧑'
+                         }, { merge: true });
+                         setShowEditProfile(false);
+                      } catch(e) {
+                         console.error("Error saving profile", e);
+                      } finally {
+                         setIsLoading(false);
+                      }
+                   }}
+                   disabled={isLoading}
+                   className="w-full bg-[#1a1917] text-white font-semibold py-[14px] rounded-[16px] shadow-[0_4px_12px_rgba(0,0,0,0.1)] hover:opacity-90 disabled:opacity-50 text-[14px] transition-opacity cursor-pointer"
+                >
+                   {isLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+             </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* SMALL FLOATING BOTTOM BAR */}
       <div className="fixed bottom-[24px] left-1/2 -translate-x-1/2 bg-[#1a1917]/95 backdrop-blur-xl rounded-[28px] px-6 py-2.5 flex items-center justify-center gap-6 z-[50] shadow-[0_16px_40px_rgba(0,0,0,0.25)] border border-[#302e2a]">
         <button onClick={() => setActiveView('home')} className={`flex flex-col items-center justify-center gap-1 outline-none transition-all cursor-pointer min-w-[44px] ${activeView === 'home' ? 'text-white' : 'text-[#858279] hover:text-[#c4c1b9]'}`}>
@@ -611,9 +1047,11 @@ export default function App() {
            <span className="text-[10px] font-bold tracking-wide leading-none">Home</span>
         </button>
         
-        <button onClick={handleOpenAdd} className="w-[42px] h-[42px] bg-white rounded-full flex items-center justify-center text-[#1a1917] outline-none hover:scale-105 active:scale-95 transition-all shadow-[0_2px_12px_rgba(255,255,255,0.15)] cursor-pointer mx-1">
-           <Plus size={22} strokeWidth={3} />
-        </button>
+        {!isReadOnly && (
+           <button onClick={handleOpenAdd} className="w-[42px] h-[42px] bg-white rounded-full flex items-center justify-center text-[#1a1917] outline-none hover:scale-105 active:scale-95 transition-all shadow-[0_2px_12px_rgba(255,255,255,0.15)] cursor-pointer mx-1">
+              <Plus size={22} strokeWidth={3} />
+           </button>
+        )}
         
         <button onClick={() => setActiveView('stats')} className={`flex flex-col items-center justify-center gap-1 outline-none transition-all cursor-pointer min-w-[44px] ${activeView === 'stats' ? 'text-white' : 'text-[#858279] hover:text-[#c4c1b9]'}`}>
            <BarChart2 size={20} strokeWidth={2.5} />
@@ -627,7 +1065,7 @@ export default function App() {
 
 // Sub-components
 
-function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] | null, isInitializing: boolean, onSelect: (id: number) => void }) {
+function StackingList({ items, isInitializing, onSelect, isReadOnly, currentProfile }: { items: TitleItem[] | null, isInitializing: boolean, onSelect: (id: number) => void, isReadOnly?: boolean, currentProfile?: string | null }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [cardH, setCardH] = useState(120);
   const [expandedColId, setExpandedColId] = useState<string | null>(null);
@@ -821,7 +1259,7 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
                                       >
                                         <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
                                            <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
-                                              <ListCard item={subItem} index={globalIndex} onClick={() => onSelect(subItem.id)} />
+                                              <ListCard item={subItem} index={globalIndex} onClick={() => onSelect(subItem.id)} isReadOnly={isReadOnly} currentProfile={currentProfile} />
                                            </div>
                                         </div>
                                       </motion.div>
@@ -845,7 +1283,7 @@ function StackingList({ items, isInitializing, onSelect }: { items: TitleItem[] 
                          <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
                             <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
                                <div className="animate-list-item" style={{ animationDelay: `${Math.min(globalIndex, 15) * 0.03 + 0.02}s` }}>
-                                  <ListCard item={item} index={globalIndex} onClick={() => onSelect(item.id)} />
+                                  <ListCard item={item} index={globalIndex} onClick={() => onSelect(item.id)} isReadOnly={isReadOnly} currentProfile={currentProfile} />
                                </div>
                             </div>
                          </div>
@@ -917,7 +1355,7 @@ function CollectionCard({ item, isExpanded, onClick }: { item: CollectionItem, i
   );
 }
 
-function ListCard({ item, index, onClick }: { item: TitleItem, index: number, onClick: () => void, key?: any }) {
+function ListCard({ item, index, onClick, isReadOnly, currentProfile }: { item: TitleItem, index: number, onClick: () => void, isReadOnly?: boolean, currentProfile?: string | null, key?: any }) {
   const [removedDir, setRemovedDir] = useState<'left' | 'right' | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -951,6 +1389,7 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
 
   const handleDragEnd = async (_: any, info: any) => {
     setIsDragging(false);
+    if (isReadOnly) return;
     if (!cardRef.current) return;
     const thresh = cardRef.current.offsetWidth * 0.35;
     const velocity = info.velocity.x;
@@ -960,15 +1399,15 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
       setRemovedDir('right');
       setTimeout(async () => {
         if (item.status === 'completed') {
-          await updateDoc(doc(db, 'titles', item.id.toString()), { status: 'plan' });
+          await updateDoc(doc(db, 'users', currentProfile!, 'watchlist', item.id.toString()), { status: 'plan' });
         } else {
-          await updateDoc(doc(db, 'titles', item.id.toString()), { status: 'completed' });
+          await updateDoc(doc(db, 'users', currentProfile!, 'watchlist', item.id.toString()), { status: 'completed' });
         }
       }, 300);
     } else if (info.offset.x < -thresh || (info.offset.x < -50 && velocity < -600)) {
       setRemovedDir('left');
       setTimeout(async () => {
-        await deleteDoc(doc(db, 'titles', item.id.toString()));
+        await deleteDoc(doc(db, 'users', currentProfile!, 'watchlist', item.id.toString()));
       }, 300);
     }
   };
@@ -976,24 +1415,26 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
   return (
     <div ref={cardRef} className="relative w-full rounded-[16px] overflow-hidden bg-[#e0ddd6]">
       {/* Background reveals */}
-      <motion.div 
-         style={{ backgroundColor }} 
-         className={`absolute inset-0 flex items-center justify-between px-6 ${isDragging || removedDir ? 'opacity-100' : 'opacity-0'}`}
-      >
-         <motion.div style={{ scale: leftIconScale, opacity: leftIconOpacity }}>
-            {item.status === 'completed' ? (
-                <Bookmark color="white" size={28} />
-            ) : (
-                <CheckCircle2 color="white" size={28} />
-            )}
-         </motion.div>
-         <motion.div style={{ scale: rightIconScale, opacity: rightIconOpacity }}>
-            <Trash2 color="white" size={28} />
-         </motion.div>
-      </motion.div>
+      {!isReadOnly && (
+        <motion.div 
+           style={{ backgroundColor }} 
+           className={`absolute inset-0 flex items-center justify-between px-6 ${isDragging || removedDir ? 'opacity-100' : 'opacity-0'}`}
+        >
+           <motion.div style={{ scale: leftIconScale, opacity: leftIconOpacity }}>
+              {item.status === 'completed' ? (
+                  <Bookmark color="white" size={28} />
+              ) : (
+                  <CheckCircle2 color="white" size={28} />
+              )}
+           </motion.div>
+           <motion.div style={{ scale: rightIconScale, opacity: rightIconOpacity }}>
+              <Trash2 color="white" size={28} />
+           </motion.div>
+        </motion.div>
+      )}
 
       <motion.div 
-         drag={removedDir ? false : "x"}
+         drag={removedDir || isReadOnly ? false : "x"}
          dragConstraints={{ left: 0, right: 0 }}
          dragElastic={0.8}
          style={{ x }}
@@ -1053,7 +1494,7 @@ function ListCard({ item, index, onClick }: { item: TitleItem, index: number, on
   )
 }
 
-function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem; onClose: () => void; onUpdate: (updates: Partial<TitleItem>) => void; onRemove: (id: number) => void; key?: any; }) {
+function ItemDetailView({ item, onClose, onUpdate, onRemove, isReadOnly }: { item: TitleItem; onClose: () => void; onUpdate: (updates: Partial<TitleItem>) => void; onRemove: (id: number) => void; isReadOnly: boolean; key?: any; }) {
   const [isEditingPoster, setIsEditingPoster] = useState(false);
   const [tempPoster, setTempPoster] = useState(item.poster || '');
 
@@ -1080,9 +1521,11 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
         <button onClick={onClose} className="absolute top-6 left-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10 z-20 cursor-pointer shadow-sm hover:bg-black/30 active:scale-95 transition-all">
            <ChevronLeft size={20} strokeWidth={2.5} className="-ml-0.5" />
         </button>
-        <button onClick={() => setIsEditingPoster(true)} className="absolute top-6 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10 z-20 cursor-pointer shadow-sm hover:bg-black/30 active:scale-95 transition-all">
-           <ImagePlus size={16} />
-        </button>
+        {!isReadOnly && (
+           <button onClick={() => setIsEditingPoster(true)} className="absolute top-6 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10 z-20 cursor-pointer shadow-sm hover:bg-black/30 active:scale-95 transition-all">
+              <ImagePlus size={16} />
+           </button>
+        )}
 
         {/* Hero Content Overlay */}
         <div className="relative z-10 px-6 pb-6 w-full flex flex-col items-center text-center">
@@ -1139,32 +1582,36 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove }: { item: TitleItem
         </div>
 
         {/* Status Actions */}
-        <div className="flex flex-col gap-2 bg-white rounded-[16px] p-1.5 border border-[#e0ddd6] shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-6">
-           <div className="flex gap-1 w-full">
-              <button 
-                onClick={() => onUpdate({status: 'plan'})} 
-                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'plan' || !item.status ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
-              >
-                Plan to Watch
-              </button>
-              <button 
-                onClick={() => onUpdate({status: 'watching'})} 
-                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'watching' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
-              >
-                Watching
-              </button>
-              <button 
-                onClick={() => onUpdate({status: 'completed'})} 
-                className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'completed' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
-              >
-                Completed
-              </button>
+        {!isReadOnly && (
+           <div className="flex flex-col gap-2 bg-white rounded-[16px] p-1.5 border border-[#e0ddd6] shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-6">
+              <div className="flex gap-1 w-full">
+                 <button 
+                   onClick={() => onUpdate({status: 'plan'})} 
+                   className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'plan' || !item.status ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
+                 >
+                   Plan to Watch
+                 </button>
+                 <button 
+                   onClick={() => onUpdate({status: 'watching'})} 
+                   className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'watching' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
+                 >
+                   Watching
+                 </button>
+                 <button 
+                   onClick={() => onUpdate({status: 'completed'})} 
+                   className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'completed' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
+                 >
+                   Completed
+                 </button>
+              </div>
            </div>
-        </div>
+        )}
 
-        <button onClick={() => { onRemove(item.id); onClose(); }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[#d32f2f] hover:bg-[#d32f2f]/10 active:scale-[0.98] transition-all duration-300 ease-out mt-auto font-medium text-[13px] cursor-pointer">
-           <Trash2 size={16} /> Delete Title
-        </button>
+        {!isReadOnly && (
+           <button onClick={() => { onRemove(item.id); onClose(); }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[#d32f2f] hover:bg-[#d32f2f]/10 active:scale-[0.98] transition-all duration-300 ease-out mt-auto font-medium text-[13px] cursor-pointer">
+              <Trash2 size={16} /> Delete Title
+           </button>
+        )}
       </div>
 
       <AnimatePresence>

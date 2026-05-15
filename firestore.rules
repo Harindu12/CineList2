@@ -32,9 +32,18 @@ service cloud.firestore {
 
     match /titles/{titleId} {
       allow read: if true;
-      allow create: if isValidId(titleId) && isValidTitle(incoming()) && incoming().keys().size() <= 15;
-      allow update: if isValidId(titleId) && isValidTitle(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'progress', 'title', 'type', 'year', 'director', 'genre', 'rating', 'synopsis', 'poster', 'cast']);
-      allow delete: if true;
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isValidId(userId);
+    }
+
+    match /users/{userId}/watchlist/{titleId} {
+      allow read: if true;
+      allow create: if isValidId(userId) && isValidId(titleId) && isValidTitle(incoming()) && incoming().keys().size() <= 15;
+      allow update: if isValidId(userId) && isValidId(titleId) && isValidTitle(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'progress', 'title', 'type', 'year', 'director', 'genre', 'rating', 'synopsis', 'poster', 'cast']);
+      allow delete: if isValidId(userId) && isValidId(titleId);
     }
   }
 }
