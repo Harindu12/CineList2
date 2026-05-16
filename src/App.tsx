@@ -82,6 +82,19 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [filter, setFilter] = useState('All');
+  const [deferredFilter, setDeferredFilter] = useState('All');
+  const filterTimerRef = useRef<number | null>(null);
+
+  const handleFilterClick = (f: string) => {
+    setFilter(f);
+    if (filterTimerRef.current) window.clearTimeout(filterTimerRef.current);
+    filterTimerRef.current = window.setTimeout(() => {
+      requestAnimationFrame(() => {
+        setDeferredFilter(f);
+      });
+    }, 16);
+  };
+
   const [activeView, setActiveView] = useState<'home' | 'stats'>('home');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -406,11 +419,11 @@ export default function App() {
   // Filtering
   const filteredItems = useMemo(() => {
      let filtered = items;
-     if (filter === 'Watching') filtered = items.filter(i => i.status === 'watching');
-     else if (filter === 'Plan to Watch') filtered = items.filter(i => i.status === 'plan' || !i.status);
-     else if (filter === 'Completed') filtered = items.filter(i => i.status === 'completed');
-     else if (filter === 'Movies') filtered = items.filter(i => i.type === 'movie');
-     else if (filter === 'Series') filtered = items.filter(i => i.type === 'tv');
+     if (deferredFilter === 'Watching') filtered = items.filter(i => i.status === 'watching');
+     else if (deferredFilter === 'Plan to Watch') filtered = items.filter(i => i.status === 'plan' || !i.status);
+     else if (deferredFilter === 'Completed') filtered = items.filter(i => i.status === 'completed');
+     else if (deferredFilter === 'Movies') filtered = items.filter(i => i.type === 'movie');
+     else if (deferredFilter === 'Series') filtered = items.filter(i => i.type === 'tv');
      
      if (searchQuery.trim() !== '') {
        filtered = filtered.filter(i => i.title.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -649,7 +662,7 @@ export default function App() {
                 {['All', 'Watching', 'Plan to Watch', 'Completed'].map((f) => (
                   <button 
                     key={f} 
-                    onClick={() => setFilter(f)} 
+                    onClick={() => handleFilterClick(f)} 
                     className={`text-[13px] font-medium px-4 py-2 cursor-pointer whitespace-nowrap shrink-0 transition-colors relative z-10 outline-none ${filter === f ? 'text-white font-bold' : 'text-[#9b9890] hover:text-[#1a1917]'}`}
                   >
                     {filter === f && (
@@ -1267,6 +1280,7 @@ function StackingList({ items, isInitializing, onSelect, isReadOnly, currentProf
                                exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
                                transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
                                className="card-wrap-anchor relative"
+                               style={{ contentVisibility: 'auto' }}
                              >
                                 <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
                                    <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
@@ -1289,6 +1303,7 @@ function StackingList({ items, isInitializing, onSelect, isReadOnly, currentProf
                                         exit={{ height: 0, opacity: 0, scale: 0.9, y: -20, overflow: 'hidden' }}
                                         transition={{ type: "spring", bounce: 0.2, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                                         className="card-wrap-anchor relative pl-8"
+                                        style={{ contentVisibility: 'auto' }}
                                       >
                                         <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
                                            <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
@@ -1312,6 +1327,7 @@ function StackingList({ items, isInitializing, onSelect, isReadOnly, currentProf
                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
                          transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
                          className="card-wrap-anchor relative"
+                         style={{ contentVisibility: 'auto' }}
                        >
                          <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
                             <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
