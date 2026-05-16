@@ -534,7 +534,38 @@ export default function App() {
   const selectedItem = items.find(i => i.id === selectedId);
 
   if (isInitializing && !currentProfile) {
-     return <div className="h-[100dvh] flex items-center justify-center bg-[#f0ede8]"><div className="w-6 h-6 border-2 border-[#1a1917]/20 border-t-[#1a1917] rounded-full animate-spin" /></div>;
+    return (
+      <div className="h-[100dvh] w-full flex flex-col items-center justify-center bg-[#f0ede8] max-w-[430px] mx-auto relative overflow-hidden">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="relative flex flex-col items-center z-10"
+        >
+          <div className="w-20 h-20 bg-white rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.06)] border border-[#e0ddd6] flex items-center justify-center mb-6 relative overflow-hidden">
+             <div className="absolute inset-0 bg-[linear-gradient(to_bottom_right,transparent,#1a19170a)]" />
+             <div className="flex gap-1.5 z-10 items-end h-[32px]">
+                <motion.div animate={{ height: ["16px", "32px", "16px"] }} transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }} className="w-2.5 bg-[#1a1917] rounded-full" />
+                <motion.div animate={{ height: ["24px", "12px", "24px"] }} transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }} className="w-2.5 bg-[#1a1917]/60 rounded-full" />
+                <motion.div animate={{ height: ["12px", "24px", "12px"] }} transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }} className="w-2.5 bg-[#1a1917]/30 rounded-full" />
+             </div>
+          </div>
+          
+          <div className="font-serif text-[32px] tracking-[-0.03em] leading-none text-[#1a1917] font-bold mb-4">
+             Watch<em className="italic ml-[1px]">list</em>
+          </div>
+          
+          <div className="flex items-center gap-2 text-[#9b9890] text-[13px] font-medium tracking-wide bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full border border-white">
+             <span className="w-3.5 h-3.5 border-2 border-[#1a1917]/20 border-t-[#1a1917] rounded-full animate-spin" />
+             Loading library...
+          </div>
+        </motion.div>
+        
+        {/* Decorative background blobs */}
+        <div className="absolute top-[20%] left-[-10%] w-[200px] h-[200px] bg-white rounded-full blur-[60px] opacity-60" />
+        <div className="absolute bottom-[20%] right-[-10%] w-[200px] h-[200px] bg-white rounded-full blur-[60px] opacity-60" />
+      </div>
+    );
   }
 
   if (!currentProfile) {
