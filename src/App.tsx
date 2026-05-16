@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { GoogleGenAI, Type } from '@google/genai';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'motion/react';
-import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud, Bookmark, BarChart2, ChevronLeft, CheckCircle2, PlayCircle, RefreshCw, Edit3, Menu, Upload } from 'lucide-react';
+import { Clapperboard, X, Plus, Home, Search as SearchIcon, Trash2, User, List, Star, ImagePlus, Download, UploadCloud, Bookmark, BarChart2, ChevronLeft, CheckCircle2, PlayCircle, RefreshCw, Edit3, Menu, Upload, ChevronDown } from 'lucide-react';
 
 import { db, auth } from './firebase';
 import { collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc, getDocs } from 'firebase/firestore';
@@ -25,7 +24,15 @@ export type CollectionItem = {
 
 export type ListItem = TitleItem | CollectionItem;
 
-interface TitleItem {
+export interface SeasonItem {
+  id: number;
+  season_number: number;
+  name: string;
+  episode_count: number;
+  status?: TitleStatus;
+}
+
+export interface TitleItem {
   id: number;
   title: string;
   type: TitleType;
@@ -38,6 +45,8 @@ interface TitleItem {
   poster?: string;
   status?: TitleStatus;
   progress?: number;
+  tmdbId?: number;
+  seasons?: SeasonItem[];
 }
 
 const AvatarDisplay = ({ avatar, size = 32 }: { avatar?: string, size?: number }) => {
@@ -315,32 +324,72 @@ export default function App() {
     setStatusText('Adding...');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Find details for the movie or TV show: "${nameQuery}". Return a raw JSON object only. Do NOT provide a poster URL. Provide the IMDb rating (e.g., 8.5/10) rather than the age rating.`,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              type: { type: Type.STRING, description: "'movie' or 'tv'" },
-              year: { type: Type.STRING },
-              director: { type: Type.STRING },
-              genre: { type: Type.STRING, description: "e.g., Action" },
-              rating: { type: Type.STRING, description: "e.g., 8.5/10" },
-              cast: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Array of max 3 lead actors" },
-              synopsis: { type: Type.STRING, description: "Short 1-sentence synopsis" },
-            },
-            required: ["title", "type", "year", "genre", "rating", "cast", "synopsis"]
-          }
-        }
-      });
+      const TMDB_API_KEY = "2053bd75e7016400293c3759defe1af9";
+      const searchRes = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(nameQuery)}`);
+      
+      if (!searchRes.ok) {
+        throw new Error('Failed to search TMDB');
+      }
+      
+      const searchData = await searchRes.json();
+      if (!searchData.results || searchData.results.length === 0) {
+        throw new Error('No results found');
+      }
+      
+      let bestMatch = searchData.results[0];
+      // Try to find an exact title match first
+      const exactMatch = searchData.results.find((r: any) => 
+        (r.title || r.name || '').toLowerCase() === nameQuery.trim().toLowerCase()
+      );
+      if (exactMatch) {
+        bestMatch = exactMatch;
+      }
+      
+      const mediaType = bestMatch.media_type === 'tv' ? 'tv' : 'movie';
+      const tmdbId = bestMatch.id;
+      
+      let info: any = {
+        title: bestMatch.title || bestMatch.name || nameQuery,
+        type: mediaType,
+        tmdbId: tmdbId,
+        year: (bestMatch.release_date || bestMatch.first_air_date || '').split('-')[0],
+        synopsis: bestMatch.overview || '',
+        poster: bestMatch.poster_path ? `https://image.tmdb.org/t/p/w500${bestMatch.poster_path}` : undefined,
+        rating: bestMatch.vote_average ? `${bestMatch.vote_average.toFixed(1)}/10` : '',
+        genre: '',
+        director: '',
+        cast: [],
+      };
 
-      const text = response.text || "{}";
-      const info = JSON.parse(text);
-      const title = info.title || nameQuery;
+      const detailsRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=credits`);
+      let seasonsData: SeasonItem[] = [];
+      if (detailsRes.ok) {
+        const detailsData = await detailsRes.json();
+        if (detailsData.genres && detailsData.genres.length > 0) {
+          info.genre = detailsData.genres.map((g: any) => g.name).join(', ');
+        }
+        if (detailsData.credits && detailsData.credits.crew) {
+          const director = detailsData.credits.crew.find((c: any) => c.job === 'Director');
+          if (director) info.director = director.name;
+        }
+        if (detailsData.credits && detailsData.credits.cast) {
+          info.cast = detailsData.credits.cast.slice(0, 5).map((c: any) => c.name);
+        }
+        if (mediaType === 'tv' && detailsData.seasons) {
+          seasonsData = detailsData.seasons
+            .filter((s: any) => s.season_number > 0)
+            .map((s: any) => ({
+              id: s.id,
+              season_number: s.season_number,
+              name: s.name,
+              episode_count: s.episode_count,
+              status: 'plan',
+              progressItemCount: 0
+            }));
+        }
+      }
+
+      const title = info.title;
 
       if (items.some((i) => i.title.toLowerCase() === title.toLowerCase())) {
         setStatusText('Already in list.');
@@ -350,6 +399,7 @@ export default function App() {
       }
 
       const id = Date.now();
+      
       const newItem: TitleItem = {
         id,
         title: title,
@@ -362,8 +412,11 @@ export default function App() {
         synopsis: info.synopsis || '',
         status: 'plan',
         progress: 0,
+        tmdbId: info.tmdbId,
+        ...(seasonsData.length > 0 && { seasons: seasonsData })
       };
       
+      if (info.poster) newItem.poster = info.poster;
       if (posterQuery.trim()) {
         newItem.poster = posterQuery.trim();
       }
@@ -375,9 +428,8 @@ export default function App() {
       handleCloseAdd();
       setStatusText('');
     } catch (err: any) {
-      console.error("Gemini API Error:", err);
-      alert("Could not fetch details. If deployed, ensure GEMINI_API_KEY is set in your environment variables and redeploy. Adding title with basic info instead.");
-      
+      console.error("API Error:", err);
+      // Fallback
       if (items.some((i) => i.title.toLowerCase() === nameQuery.trim().toLowerCase())) {
         setStatusText('Already in list.');
         setIsLoading(false);
@@ -483,57 +535,105 @@ export default function App() {
     setIsSyncing(true);
     setStatusText('Syncing metadata...');
 
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    
-    // We'll process in chunks to avoid overwhelming the API
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      // Only sync if info is missing
-      const needsUpdate = !item.cast || item.cast.length === 0 || !item.rating?.includes('/') || !item.synopsis || !item.director || !item.genre;
+      const TMDB_API_KEY = "2053bd75e7016400293c3759defe1af9";
       
-      if (needsUpdate) {
-        setStatusText(`Syncing [${i+1}/${items.length}] ${item.title}...`);
-        try {
-          const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: `Find complete details for the movie/TV show: "${item.title}" (${item.year || ''}). Return a raw JSON object only. Provide the IMDb rating (e.g., 8.5/10) rather than the age rating.`,
-            config: {
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                properties: {
-                  year: { type: Type.STRING },
-                  director: { type: Type.STRING },
-                  genre: { type: Type.STRING, description: "e.g., Action" },
-                  rating: { type: Type.STRING, description: "e.g., 8.5/10" },
-                  cast: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Array of max 3 lead actors" },
-                  synopsis: { type: Type.STRING, description: "Short 1-sentence synopsis" },
-                },
-                required: ["year", "genre", "rating", "cast", "synopsis"]
-              }
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const needsUpdate = !item.cast || item.cast.length === 0 || !item.rating?.includes('/') || !item.synopsis || !item.director || !item.genre;
+        
+        if (needsUpdate || !item.tmdbId) {
+          setStatusText(`Syncing [${i+1}/${items.length}] ${item.title}...`);
+          try {
+            let tmdbId = item.tmdbId;
+            let mediaType = item.type;
+            
+            if (!tmdbId) {
+               const searchRes = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(item.title)}`);
+               if (searchRes.ok) {
+                 const searchData = await searchRes.json();
+                 if (searchData.results && searchData.results.length > 0) {
+                   const bestMatch = searchData.results[0];
+                   tmdbId = bestMatch.id;
+                   mediaType = bestMatch.media_type === 'tv' ? 'tv' : 'movie';
+                 }
+               }
             }
-          });
-          
-          const jsonText = response.text || "{}";
-          const data = JSON.parse(jsonText);
-          
-          if (data.rating || data.synopsis || (data.cast && data.cast.length > 0)) {
-            await updateDoc(doc(db, 'users', currentProfile!, 'watchlist', item.id.toString()), {
-              year: data.year || item.year,
-              director: data.director || item.director || '',
-              genre: data.genre || item.genre || '',
-              rating: data.rating || item.rating || '',
-              cast: data.cast && data.cast.length > 0 ? data.cast : item.cast || [],
-              synopsis: data.synopsis || item.synopsis || ''
-            });
+            
+            if (tmdbId) {
+               const detailsRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=credits`);
+               if (detailsRes.ok) {
+                  const detailsData = await detailsRes.json();
+                  
+                  let director = '';
+                  if (detailsData.credits && detailsData.credits.crew) {
+                    const dirObj = detailsData.credits.crew.find((c: any) => c.job === 'Director');
+                    if (dirObj) director = dirObj.name;
+                  }
+                  
+                  let cast: string[] = [];
+                  if (detailsData.credits && detailsData.credits.cast) {
+                    cast = detailsData.credits.cast.slice(0, 5).map((c: any) => c.name);
+                  }
+                  
+                  let genre = '';
+                  if (detailsData.genres && detailsData.genres.length > 0) {
+                     genre = detailsData.genres.map((g: any) => g.name).join(', ');
+                  }
+                  
+                  let seasonsData: SeasonItem[] = [];
+                  if (mediaType === 'tv' && detailsData.seasons) {
+                     seasonsData = detailsData.seasons
+                       .filter((s: any) => s.season_number > 0)
+                       .map((s: any) => ({
+                         id: s.id,
+                         season_number: s.season_number,
+                         name: s.name,
+                         episode_count: s.episode_count,
+                         status: 'plan',
+                         progressItemCount: 0
+                       }));
+                  }
+                  
+                  // If it already had seasons in DB, keep their statuses
+                  if (seasonsData.length > 0 && item.seasons) {
+                     seasonsData = seasonsData.map(newS => {
+                        const oldS = item.seasons!.find(s => s.id === newS.id || s.season_number === newS.season_number);
+                        if (oldS) {
+                           return { ...newS, status: oldS.status };
+                        }
+                        return newS;
+                     });
+                  }
+                  
+                  const updates: any = {
+                    year: (detailsData.release_date || detailsData.first_air_date || item.year || '').split('-')[0],
+                    director: director || item.director || '',
+                    genre: genre || item.genre || '',
+                    rating: detailsData.vote_average ? `${detailsData.vote_average.toFixed(1)}/10` : item.rating || '',
+                    cast: cast.length > 0 ? cast : item.cast || [],
+                    synopsis: detailsData.overview || item.synopsis || '',
+                    type: mediaType,
+                    tmdbId: tmdbId
+                  };
+                  
+                  if (seasonsData.length > 0) {
+                     updates.seasons = seasonsData;
+                  }
+                  
+                  if (detailsData.poster_path && !item.poster) {
+                     updates.poster = `https://image.tmdb.org/t/p/w500${detailsData.poster_path}`;
+                  }
+                  
+                  await updateDoc(doc(db, 'users', currentProfile!, 'watchlist', item.id.toString()), updates);
+               }
+            }
+          } catch (err) {
+            console.error(`Failed to sync ${item.title}:`, err);
           }
-        } catch (err) {
-          console.error(`Failed to sync ${item.title}:`, err);
+          // Small delay
+          await new Promise(r => setTimeout(r, 1000));
         }
-        // Small delay
-        await new Promise(r => setTimeout(r, 1000));
       }
-    }
 
     setIsSyncing(false);
     setStatusText('Sync complete.');
@@ -1111,6 +1211,67 @@ export default function App() {
 
 // Sub-components
 
+function SeasonCard({ season, series, currentProfile, isReadOnly }: { season: SeasonItem, series: TitleItem, currentProfile?: string | null, isReadOnly?: boolean }) {
+  const handleStatusToggle = async (newStatus: TitleStatus) => {
+    if (isReadOnly || !currentProfile) return;
+    if (!series.seasons) return;
+    const updatedSeasons = series.seasons.map(s => s.id === season.id ? { ...s, status: newStatus } : s);
+    
+    // Automatically recalculate series overall status based on seasons
+    let overallStatus = series.status;
+    const allCompleted = updatedSeasons.every(s => s.status === 'completed');
+    const anyWatching = updatedSeasons.some(s => s.status === 'watching' || s.status === 'completed');
+    
+    if (allCompleted) {
+       overallStatus = 'completed';
+    } else if (anyWatching) {
+       overallStatus = 'watching';
+    } else {
+       overallStatus = 'plan';
+    }
+
+    try {
+       await updateDoc(doc(db, 'users', currentProfile, 'watchlist', series.id.toString()), { 
+          seasons: updatedSeasons,
+          status: overallStatus
+       });
+    } catch (err) {
+       console.error("Failed to update season status", err);
+    }
+  };
+  
+  return (
+      <div className="relative flex items-center gap-[12px] p-[8px_16px] w-full bg-white group hover:bg-black/[0.02] transition-colors border border-[#e0ddd6]/50 rounded-[12px] shadow-[0_1px_4px_rgba(0,0,0,0.02)]">
+         <div className="flex-1 min-w-0 flex flex-col justify-center">
+           <div className="text-[14px] font-semibold text-[#1a1917] tracking-[-0.01em] truncate">{season.name}</div>
+           <div className="text-[12px] text-[#9b9890] font-medium">{season.episode_count} Episodes</div>
+         </div>
+         <div className="flex shrink-0 gap-2 items-center" onClick={(e) => e.stopPropagation()}>
+           {!isReadOnly && (
+             <>
+               <button onClick={() => handleStatusToggle('plan')} className={`p-1.5 rounded-full transition-colors cursor-pointer ${season.status === 'plan' || !season.status ? 'bg-[#d4840a]/10 text-[#d4840a]' : 'hover:bg-black/5 text-[#9b9890]'}`}>
+                  <Bookmark size={16} strokeWidth={2.5} />
+               </button>
+               <button onClick={() => handleStatusToggle('watching')} className={`p-1.5 rounded-full transition-colors cursor-pointer ${season.status === 'watching' ? 'bg-[#6a1bdb]/10 text-[#6a1bdb]' : 'hover:bg-black/5 text-[#9b9890]'}`}>
+                  <PlayCircle size={16} strokeWidth={2.5} />
+               </button>
+               <button onClick={() => handleStatusToggle('completed')} className={`p-1.5 rounded-full transition-colors cursor-pointer ${season.status === 'completed' ? 'bg-[#388e3c]/10 text-[#388e3c]' : 'hover:bg-black/5 text-[#9b9890]'}`}>
+                  <CheckCircle2 size={16} strokeWidth={2.5} />
+               </button>
+             </>
+           )}
+           {isReadOnly && (
+             <div className="p-1.5">
+               {season.status === 'completed' && <CheckCircle2 size={16} strokeWidth={2.5} className="text-[#388e3c]" />}
+               {season.status === 'watching' && <PlayCircle size={16} strokeWidth={2.5} className="text-[#6a1bdb]" />}
+               {(season.status === 'plan' || !season.status) && <Bookmark size={16} strokeWidth={2.5} className="text-[#d4840a]" />}
+             </div>
+           )}
+         </div>
+      </div>
+  );
+}
+
 function StackingList({ items, isInitializing, onSelect, isReadOnly, currentProfile }: { items: TitleItem[] | null, isInitializing: boolean, onSelect: (id: number) => void, isReadOnly?: boolean, currentProfile?: string | null }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [cardH, setCardH] = useState(120);
@@ -1318,25 +1479,61 @@ function StackingList({ items, isInitializing, onSelect, isReadOnly, currentProf
                        );
                     }
                     
+                    const isExpanded = expandedColId === item.id;
+                    const hasSeasons = !('isCollection' in item) && item.seasons && item.seasons.length > 0;
+                    
                     return (
-                       <motion.div 
-                         key={item.id} 
-                         layout="position"
-                         initial={{ height: 0, opacity: 0 }}
-                         animate={{ height: 130, opacity: 1 }}
-                         exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
-                         transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
-                         className="card-wrap-anchor relative"
-                         style={{ contentVisibility: 'auto' }}
-                       >
-                         <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
-                            <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
-                               <div className="animate-list-item" style={{ animationDelay: `${Math.min(globalIndex, 15) * 0.03 + 0.02}s` }}>
-                                  <ListCard item={item} index={globalIndex} onClick={() => onSelect(item.id)} isReadOnly={isReadOnly} currentProfile={currentProfile} />
-                               </div>
-                            </div>
-                         </div>
-                       </motion.div>
+                       <React.Fragment key={item.id}>
+                         <motion.div 
+                           layout="position"
+                           initial={{ height: 0, opacity: 0 }}
+                           animate={{ height: 130, opacity: 1 }}
+                           exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                           transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
+                           className="card-wrap-anchor relative"
+                           style={{ contentVisibility: 'auto' }}
+                         >
+                           <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
+                              <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
+                                 <div className="animate-list-item" style={{ animationDelay: `${Math.min(globalIndex, 15) * 0.03 + 0.02}s` }}>
+                                    <ListCard 
+                                       item={item as TitleItem} 
+                                       index={globalIndex} 
+                                       onClick={() => onSelect(item.id)} 
+                                       isReadOnly={isReadOnly} 
+                                       currentProfile={currentProfile}
+                                       isExpanded={isExpanded}
+                                       onToggleExpand={hasSeasons ? () => setExpandedColId(isExpanded ? null : item.id) : undefined}
+                                    />
+                                 </div>
+                              </div>
+                           </div>
+                         </motion.div>
+
+                         <AnimatePresence>
+                            {isExpanded && hasSeasons && (item as TitleItem).seasons!.map((season, sIdx) => {
+                               globalIndex++;
+                               return (
+                                  <motion.div 
+                                    key={season.id}
+                                    layout="position"
+                                    initial={{ height: 0, opacity: 0, scale: 0.9, y: -20 }}
+                                    animate={{ height: 80, opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ height: 0, opacity: 0, scale: 0.9, y: -20, overflow: 'hidden' }}
+                                    transition={{ type: "spring", bounce: 0.2, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                                    className="card-wrap-anchor relative pl-8 mt-1.5"
+                                    style={{ contentVisibility: 'auto' }}
+                                  >
+                                    <div className="card-wrap-sticky sticky pt-[0px]" style={{ top: 0, zIndex: globalIndex }}>
+                                       <div className="card-inner relative" style={{ transformOrigin: 'top center', willChange: 'transform, opacity' }}>
+                                          <SeasonCard season={season} series={item as TitleItem} currentProfile={currentProfile} isReadOnly={isReadOnly} />
+                                       </div>
+                                    </div>
+                                  </motion.div>
+                               )
+                            })}
+                         </AnimatePresence>
+                       </React.Fragment>
                     );
                  })}
                  </AnimatePresence>
@@ -1404,7 +1601,7 @@ function CollectionCard({ item, isExpanded, onClick }: { item: CollectionItem, i
   );
 }
 
-function ListCard({ item, index, onClick, isReadOnly, currentProfile }: { item: TitleItem, index: number, onClick: () => void, isReadOnly?: boolean, currentProfile?: string | null, key?: any }) {
+function ListCard({ item, index, onClick, isReadOnly, currentProfile, isExpanded, onToggleExpand }: { item: TitleItem, index: number, onClick: () => void, isReadOnly?: boolean, currentProfile?: string | null, key?: any, isExpanded?: boolean, onToggleExpand?: () => void }) {
   const [removedDir, setRemovedDir] = useState<'left' | 'right' | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -1524,10 +1721,22 @@ function ListCard({ item, index, onClick, isReadOnly, currentProfile }: { item: 
                  <span className="flex items-center gap-0.5 shrink-0"><Star size={10} className="fill-[#e8a020] text-[#e8a020]" /> {item.rating}</span>
               </div>
             )}
+            {item.seasons && item.seasons.length > 0 && (
+                <div className="mt-1 pt-1">
+                   <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider text-[#b8b5ad] mb-1">
+                      <span>Season Progress</span>
+                      <span>{Math.round((item.seasons.filter(s => s.status === 'completed').length / item.seasons.length) * 100)}%</span>
+                   </div>
+                   <div className="h-1.5 w-full bg-[#e0ddd6] rounded-full overflow-hidden flex">
+                      <div className="h-full bg-[#388e3c] transition-all" style={{ width: `${Math.round((item.seasons.filter(s => s.status === 'completed').length / item.seasons.length) * 100)}%` }} />
+                      <div className="h-full bg-[#6a1bdb] transition-all opacity-60" style={{ width: `${Math.round((item.seasons.filter(s => s.status === 'watching').length / item.seasons.length) * 100)}%` }} />
+                   </div>
+                </div>
+            )}
          </div>
        </div>
 
-       <div className="flex shrink-0 ml-1 transition-all p-2 active:scale-90" onClick={(e) => {
+       <div className="flex shrink-0 ml-1 transition-all p-2 flex-col items-center justify-center gap-2" onClick={(e) => {
           e.stopPropagation();
        }}>
           {item.status === 'completed' ? (
@@ -1536,6 +1745,14 @@ function ListCard({ item, index, onClick, isReadOnly, currentProfile }: { item: 
              <PlayCircle size={18} strokeWidth={2.5} className="text-[#6a1bdb] opacity-80" />
           ) : (
              <Bookmark size={18} strokeWidth={2.5} className="text-[#d4840a] opacity-80" />
+          )}
+          {item.seasons && item.seasons.length > 0 && onToggleExpand && (
+             <div 
+               className="p-1 rounded-full hover:bg-black/5 active:bg-black/10 transition-colors cursor-pointer"
+               onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+             >
+                 <ChevronDown size={18} strokeWidth={2} className={`text-[#9b9890] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
+             </div>
           )}
        </div>
      </motion.div>
