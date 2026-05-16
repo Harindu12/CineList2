@@ -644,7 +644,7 @@ export default function App() {
             </div>
 
             {/* CAPSULE TABS */}
-            <div className="flex items-center px-[24px] pb-4 hidden-scrollbar overflow-x-auto relative z-10 w-full">
+            <div className="flex items-center px-[24px] pb-4 hidden-scrollbar overflow-x-auto scrollable relative z-10 w-full">
                <div className="flex items-center gap-2 w-full pr-4 relative">
                 {['All', 'Watching', 'Plan to Watch', 'Completed'].map((f) => (
                   <button 
@@ -680,8 +680,8 @@ export default function App() {
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className="absolute inset-0 flex flex-col overflow-y-auto no-scrollbar pb-[110px] px-[24px] pt-8 z-20 bg-[#e8e5df] rounded-t-[24px]"
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute inset-0 flex flex-col overflow-y-auto scrollable no-scrollbar pb-[110px] px-[24px] pt-8 z-20 bg-[#e8e5df] rounded-t-[24px]"
           >
               <motion.h2 
                initial={{ opacity: 0, y: 15 }} 
@@ -697,7 +697,7 @@ export default function App() {
                <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }} 
                   animate={{ opacity: 1, scale: 1 }} 
-                  transition={{ delay: 0.1, type: "spring", stiffness: 200, damping: 20 }}
+                  transition={{ delay: 0.1, type: "spring", stiffness: 200, damping: 20, ease: [0.16, 1, 0.3, 1] }}
                   className="bg-white/60 backdrop-blur-md rounded-[24px] p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-white/50 flex flex-col justify-between aspect-square col-span-1 hover:bg-white transition-colors duration-500 cursor-default"
                >
                   <div className="text-[11px] text-[#9b9890] font-bold tracking-[0.08em] uppercase">Library Size</div>
@@ -708,7 +708,7 @@ export default function App() {
                <motion.div 
                   initial={{ opacity: 0, scale: 0.95 }} 
                   animate={{ opacity: 1, scale: 1 }} 
-                  transition={{ delay: 0.15, type: "spring", stiffness: 200, damping: 20 }}
+                  transition={{ delay: 0.15, type: "spring", stiffness: 200, damping: 20, ease: [0.16, 1, 0.3, 1] }}
                   className="bg-[#1a1917] rounded-[24px] p-6 shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-[#302e2a] flex flex-col justify-between aspect-square col-span-1 text-white hover:scale-[1.02] transition-transform duration-500 cursor-default"
                >
                   <div className="text-[11px] text-[#858279] font-bold tracking-[0.08em] uppercase">Format</div>
@@ -732,7 +732,7 @@ export default function App() {
                <motion.div 
                   initial={{ opacity: 0, y: 20 }} 
                   animate={{ opacity: 1, y: 0 }} 
-                  transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20 }}
+                  transition={{ delay: 0.2, type: "spring", stiffness: 200, damping: 20, ease: [0.16, 1, 0.3, 1] }}
                   className="col-span-2 bg-white/60 backdrop-blur-md rounded-[24px] p-6 shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-white/50 flex flex-col gap-5 mt-1"
                >
                   <div className="flex justify-between items-center">
@@ -797,11 +797,11 @@ export default function App() {
             <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => !isLoading && handleCloseAdd()} className="fixed inset-0 bg-[#1a1917]/30 backdrop-blur-sm z-[60] w-full max-w-[430px] mx-auto" />
             <motion.div 
               initial={{ opacity: 0, y: "100%", scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: "100%", scale: 0.95 }}
-              transition={{ type: "spring", bounce: 0.15, duration: 0.6 }}
-              className="fixed inset-x-0 bottom-0 z-[70] p-4 pt-16 pointer-events-none w-full max-w-[430px] mx-auto"
-            >
+               animate={{ opacity: 1, y: 0, scale: 1 }}
+               exit={{ opacity: 0, y: "100%", scale: 0.95 }}
+               transition={{ type: "spring", bounce: 0.15, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+               className="fixed inset-x-0 bottom-0 z-[70] p-4 pt-16 pointer-events-none w-full max-w-[430px] mx-auto gpu-accel"
+             >
                <div className="w-full bg-[#f0ede8] border border-[#e0ddd6] rounded-[24px] p-6 pb-8 shadow-[0_20px_40px_rgba(0,0,0,0.2)] pointer-events-auto flex flex-col gap-4">
                   <div className="flex justify-between items-center mb-2">
                      <h3 className="font-serif text-[30px] leading-none text-[#1a1714] tracking-[-0.02em]">Add title</h3>
@@ -850,8 +850,8 @@ export default function App() {
                initial={{ opacity: 0, scale: 0.95, y: -10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.95, y: -10 }}
-               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-               className="absolute top-[80px] left-[20px] bg-[#f0ede8] rounded-[24px] p-5 z-[90] shadow-[0_16px_40px_rgba(0,0,0,0.2)] w-[260px] border border-[#e0ddd6] flex flex-col gap-4 origin-top-left"
+               transition={{ type: "spring", stiffness: 300, damping: 30, ease: [0.16, 1, 0.3, 1] }}
+               className="absolute top-[80px] left-[20px] bg-[#f0ede8] rounded-[24px] p-5 z-[90] shadow-[0_16px_40px_rgba(0,0,0,0.2)] w-[260px] border border-[#e0ddd6] flex flex-col gap-4 origin-top-left gpu-accel"
              >
                 <div className="flex items-center justify-between mb-2">
                    <h2 className="text-[20px] font-serif font-bold text-[#1a1917]">Menu</h2>
@@ -924,7 +924,8 @@ export default function App() {
                initial={{ opacity: 0, scale: 0.95, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#f0ede8] rounded-[28px] p-5 z-[90] shadow-[0_16px_40px_rgba(0,0,0,0.2)] w-[280px] border border-[#e0ddd6] flex flex-col gap-3"
+               transition={{ type: "spring", stiffness: 300, damping: 30, ease: [0.16, 1, 0.3, 1] }}
+               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#f0ede8] rounded-[28px] p-5 z-[90] shadow-[0_16px_40px_rgba(0,0,0,0.2)] w-[280px] border border-[#e0ddd6] flex flex-col gap-3 gpu-accel"
              >
                 <div className="flex flex-col items-center gap-2 mb-4">
                   <div className="relative group overflow-hidden border border-[#e0ddd6] rounded-full shadow-sm mb-0">
@@ -948,7 +949,7 @@ export default function App() {
 
                  <div className="flex flex-col gap-2 mb-2">
                     <span className="text-[12px] font-bold text-[#9b9890] uppercase tracking-wider ml-1">View list from</span>
-                    <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto no-scrollbar pr-1">
+                    <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto scrollable no-scrollbar pr-1">
                        {allUsers.filter(u => u.username !== currentProfile).length === 0 ? (
                           <div className="text-[13px] text-[#9b9890] p-2 text-center">No other users yet</div>
                        ) : (
@@ -1006,7 +1007,8 @@ export default function App() {
                initial={{ opacity: 0, scale: 0.95, y: 10 }}
                animate={{ opacity: 1, scale: 1, y: 0 }}
                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#f0ede8] rounded-[28px] p-5 z-[90] shadow-[0_16px_40px_rgba(0,0,0,0.2)] w-[280px] border border-[#e0ddd6] flex flex-col gap-3"
+               transition={{ type: "spring", stiffness: 300, damping: 30, ease: [0.16, 1, 0.3, 1] }}
+               className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#f0ede8] rounded-[28px] p-5 z-[90] shadow-[0_16px_40px_rgba(0,0,0,0.2)] w-[280px] border border-[#e0ddd6] flex flex-col gap-3 gpu-accel"
              >
                 <div className="flex items-center justify-between mb-4">
                    <h2 className="text-[20px] font-serif font-bold text-[#1a1917]">Edit Profile</h2>
@@ -1072,7 +1074,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* SMALL FLOATING BOTTOM BAR */}
-      <div className="fixed bottom-[24px] left-1/2 -translate-x-1/2 bg-[#1a1917]/95 backdrop-blur-xl rounded-[28px] px-6 py-2.5 flex items-center justify-center gap-6 z-[50] shadow-[0_16px_40px_rgba(0,0,0,0.25)] border border-[#302e2a]">
+      <div className="fixed bottom-[24px] left-1/2 -translate-x-1/2 bg-[#1a1917]/95 backdrop-blur-xl rounded-[28px] px-6 py-2.5 flex items-center justify-center gap-6 z-[50] shadow-[0_16px_40px_rgba(0,0,0,0.25)] border border-[#302e2a] gpu-accel">
         <button onClick={() => setActiveView('home')} className={`flex flex-col items-center justify-center gap-1 outline-none transition-all cursor-pointer min-w-[44px] ${activeView === 'home' ? 'text-white' : 'text-[#858279] hover:text-[#c4c1b9]'}`}>
            <Home size={20} strokeWidth={2.5} />
            <span className="text-[10px] font-bold tracking-wide leading-none">Home</span>
@@ -1165,7 +1167,7 @@ function StackingList({ items, isInitializing, onSelect, isReadOnly, currentProf
 
   if (isInitializing) {
      return (
-        <div ref={scrollerRef} className="flex-1 overflow-y-auto no-scrollbar px-[24px] pb-[110px] relative w-full pt-1">
+        <div ref={scrollerRef} className="flex-1 overflow-y-auto scrollable no-scrollbar px-[24px] pb-[110px] relative w-full pt-1 contain-list">
           <div className="pb-[40px]">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="card-wrap-anchor relative h-[125px]">
@@ -1183,7 +1185,7 @@ function StackingList({ items, isInitializing, onSelect, isReadOnly, currentProf
 
   if (!items || items.length === 0) {
      return (
-        <div className="flex-1 overflow-y-auto no-scrollbar px-[24px] pb-[110px] w-full">
+        <div className="flex-1 overflow-y-auto scrollable no-scrollbar px-[24px] pb-[110px] w-full contain-list">
            <div className="py-16 flex flex-col items-center text-center animate-in fade-in duration-500">
               <div className="w-[72px] h-[72px] bg-white rounded-full border border-[#e0ddd6] flex items-center justify-center mb-5 text-[#9b9890] shadow-sm">
                 <List size={28} strokeWidth={1.5} />
@@ -1245,7 +1247,7 @@ function StackingList({ items, isInitializing, onSelect, isReadOnly, currentProf
   let globalIndex = 0; // Use for staggered animations and stacking z-index
 
   return (
-    <div ref={scrollerRef} className="flex-1 overflow-y-auto no-scrollbar px-[24px] pb-[110px] relative w-full pt-1">
+    <div ref={scrollerRef} className="flex-1 overflow-y-auto scrollable no-scrollbar px-[24px] pb-[110px] relative w-full pt-1 contain-list">
       <div className="pb-[40px] flex flex-col gap-8">
         {sortedGenres.map((genre) => (
            <div key={genre} className="flex flex-col">
@@ -1285,7 +1287,7 @@ function StackingList({ items, isInitializing, onSelect, isReadOnly, currentProf
                                         initial={{ height: 0, opacity: 0, scale: 0.9, y: -20 }}
                                         animate={{ height: 130, opacity: 1, scale: 1, y: 0 }}
                                         exit={{ height: 0, opacity: 0, scale: 0.9, y: -20, overflow: 'hidden' }}
-                                        transition={{ type: "spring", bounce: 0.2, duration: 0.4 }}
+                                        transition={{ type: "spring", bounce: 0.2, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                                         className="card-wrap-anchor relative pl-8"
                                       >
                                         <div className="card-wrap-sticky sticky pt-[10px]" style={{ top: 0, zIndex: globalIndex }}>
@@ -1472,7 +1474,7 @@ function ListCard({ item, index, onClick, isReadOnly, currentProfile }: { item: 
          onDragStart={() => setIsDragging(true)}
          onDragEnd={handleDragEnd}
          animate={removedDir === 'right' ? { x: 500, opacity: 0 } : removedDir === 'left' ? { x: -500, opacity: 0 } : { x: 0, opacity: 1 }}
-         transition={{ type: "spring", bounce: 0, duration: 0.3 }}
+         transition={{ type: "spring", bounce: 0, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
          onClick={onClick} 
          className="relative flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full bg-white group active:bg-black/5 hover:bg-black/[0.02] hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out origin-center cursor-pointer border border-[#e0ddd6]/50 rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
       >
@@ -1530,7 +1532,7 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove, isReadOnly }: { ite
   const [tempPoster, setTempPoster] = useState(item.poster || '');
 
   return (
-    <motion.div initial={{y:"100%", opacity: 0.8 }} animate={{y:0, opacity: 1 }} exit={{y:"100%", opacity: 0 }} transition={{type: "spring", damping: 28, stiffness: 200, mass: 0.8}} className="fixed inset-0 z-50 bg-brand-bg flex flex-col overflow-y-auto no-scrollbar w-full max-w-[430px] mx-auto overflow-x-hidden">
+    <motion.div initial={{y:"100%", opacity: 0.8 }} animate={{y:0, opacity: 1 }} exit={{y:"100%", opacity: 0 }} transition={{type: "spring", damping: 28, stiffness: 200, mass: 0.8, ease: [0.16, 1, 0.3, 1]}} className="fixed inset-0 z-50 bg-brand-bg flex flex-col overflow-y-auto scrollable no-scrollbar w-full max-w-[430px] mx-auto overflow-x-hidden gpu-accel">
       
       {/* FULL WIDTH POSTER HERO */}
       <div className="relative w-full min-h-[60vh] shrink-0 bg-[#e0dbd4] flex flex-col justify-end">
@@ -1651,7 +1653,7 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove, isReadOnly }: { ite
             initial={{ opacity: 0, scale: 0.95 }} 
             animate={{ opacity: 1, scale: 1 }} 
             exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
+            transition={{ type: "spring", bounce: 0.2, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             className="absolute inset-0 bg-[#1a1917]/40 backdrop-blur-md flex flex-col items-center justify-center p-6 z-[60] text-center"
           >
               <div className="w-full bg-[#f0ede8] border border-[#e0ddd6] rounded-[20px] p-6 shadow-xl flex flex-col gap-4 text-left">

@@ -38,6 +38,26 @@ body {
   scrollbar-width: none;
 }
 
+/* GPU Optimization Classes */
+.gpu-accel {
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimize scrollable areas */
+.scrollable {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Container limits */
+.contain-list {
+  contain: layout style paint;
+}
+
 /* Animations */
 @keyframes fadeUpList {
   from { opacity: 0; transform: translateY(24px) scale(0.97); }
