@@ -91,17 +91,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [statusText, setStatusText] = useState('');
   const [filter, setFilter] = useState('All');
-  const [deferredFilter, setDeferredFilter] = useState('All');
-  const filterTimerRef = useRef<number | null>(null);
 
   const handleFilterClick = (f: string) => {
     setFilter(f);
-    if (filterTimerRef.current) window.clearTimeout(filterTimerRef.current);
-    filterTimerRef.current = window.setTimeout(() => {
-      requestAnimationFrame(() => {
-        setDeferredFilter(f);
-      });
-    }, 16);
   };
 
   const [activeView, setActiveView] = useState<'home' | 'stats'>('home');
@@ -471,11 +463,11 @@ export default function App() {
   // Filtering
   const filteredItems = useMemo(() => {
      let filtered = items;
-     if (deferredFilter === 'Watching') filtered = items.filter(i => i.status === 'watching');
-     else if (deferredFilter === 'Plan to Watch') filtered = items.filter(i => i.status === 'plan' || !i.status);
-     else if (deferredFilter === 'Completed') filtered = items.filter(i => i.status === 'completed');
-     else if (deferredFilter === 'Movies') filtered = items.filter(i => i.type === 'movie');
-     else if (deferredFilter === 'Series') filtered = items.filter(i => i.type === 'tv');
+     if (filter === 'Watching') filtered = items.filter(i => i.status === 'watching');
+     else if (filter === 'Plan to Watch') filtered = items.filter(i => i.status === 'plan' || !i.status);
+     else if (filter === 'Completed') filtered = items.filter(i => i.status === 'completed');
+     else if (filter === 'Movies') filtered = items.filter(i => i.type === 'movie');
+     else if (filter === 'Series') filtered = items.filter(i => i.type === 'tv');
      
      if (searchQuery.trim() !== '') {
        filtered = filtered.filter(i => i.title.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -786,7 +778,7 @@ export default function App() {
            <div className="px-[24px] pb-[14px] pt-[20px] text-[11px] font-semibold tracking-[0.08em] uppercase text-[#9b9890] flex-shrink-0 bg-[#e8e5df] rounded-t-[24px]">
               {filter === 'All' ? (searchQuery ? 'Search Results' : 'All Titles') : filter}
            </div>
-           <StackingList items={isInitializing ? null : filteredItems} isInitializing={isInitializing} onSelect={handleSelectId} isReadOnly={isReadOnly} currentProfile={currentProfile} />
+           <StackingList key={filter} items={isInitializing ? null : filteredItems} isInitializing={isInitializing} onSelect={handleSelectId} isReadOnly={isReadOnly} currentProfile={currentProfile} />
         </div>
         
         {activeView === 'stats' && (
