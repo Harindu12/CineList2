@@ -1689,16 +1689,16 @@ function ListCard({ item, index, onClick, isReadOnly, currentProfile, isExpanded
          animate={removedDir === 'right' ? { x: 500, opacity: 0 } : removedDir === 'left' ? { x: -500, opacity: 0 } : { x: 0, opacity: 1 }}
          transition={{ type: "spring", bounce: 0, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
          onClick={onClick} 
-         className="relative flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full bg-white group active:bg-black/5 hover:bg-black/[0.02] hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out origin-center cursor-pointer border border-[#e0ddd6]/50 rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+         className="relative flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full min-h-[121px] max-h-[121px] h-[121px] bg-white group active:bg-black/5 hover:bg-black/[0.02] hover:shadow-[0_8px_16px_rgba(0,0,0,0.06)] transition-all duration-300 ease-out origin-center cursor-pointer border border-[#e0ddd6]/50 rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
       >
         <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0 flex items-center justify-center text-xl overflow-hidden border border-[#e0ddd6] group-hover:-translate-y-1 group-active:-translate-y-0.5 group-hover:shadow-md transition-all duration-400 ease-out pointer-events-none">
           {item.poster ? <img src={item.poster} className="w-full h-full object-cover" /> : (item.type === 'movie' ? '🍿' : '📺')}
        </div>
        
        <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
-         <div className="text-[15px] leading-[1.25] font-semibold mb-1.5 text-[#1a1917] tracking-[-0.01em] line-clamp-2 pr-2">{item.title}</div>
+         <div className="text-[15px] leading-[1.25] font-semibold mb-1 text-[#1a1917] tracking-[-0.01em] truncate w-full pr-2">{item.title}</div>
          
-         <div className="flex flex-col gap-1">
+         <div className="flex flex-col gap-1 w-full pr-2">
             <div className="text-[12px] text-[#9b9890] font-medium flex items-center gap-1.5 truncate">
                <span>{item.year || 'Unknown'}</span>
                <div className="w-[3px] h-[3px] rounded-full bg-[#d0cac3] shrink-0" />
@@ -1722,7 +1722,7 @@ function ListCard({ item, index, onClick, isReadOnly, currentProfile, isExpanded
               </div>
             )}
             {item.seasons && item.seasons.length > 0 && (
-                <div className="mt-1 pt-1">
+                <div className="mt-0.5 pt-0.5 w-full">
                    <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-wider text-[#b8b5ad] mb-1">
                       <span>Season Progress</span>
                       <span>{Math.round((item.seasons.filter(s => s.status === 'completed').length / item.seasons.length) * 100)}%</span>
@@ -1736,19 +1736,19 @@ function ListCard({ item, index, onClick, isReadOnly, currentProfile, isExpanded
          </div>
        </div>
 
-       <div className="flex shrink-0 ml-1 transition-all p-2 flex-col items-center justify-center gap-2" onClick={(e) => {
+       <div className="flex shrink-0 ml-1 transition-all flex-col items-center justify-center gap-3 w-[26px]" onClick={(e) => {
           e.stopPropagation();
        }}>
           {item.status === 'completed' ? (
-             <CheckCircle2 size={18} strokeWidth={2.5} className="text-[#388e3c] opacity-80" />
+             <CheckCircle2 size={18} strokeWidth={2.5} className="text-[#388e3c] opacity-80 shrink-0" />
           ) : item.status === 'watching' ? (
-             <PlayCircle size={18} strokeWidth={2.5} className="text-[#6a1bdb] opacity-80" />
+             <PlayCircle size={18} strokeWidth={2.5} className="text-[#6a1bdb] opacity-80 shrink-0" />
           ) : (
-             <Bookmark size={18} strokeWidth={2.5} className="text-[#d4840a] opacity-80" />
+             <Bookmark size={18} strokeWidth={2.5} className="text-[#d4840a] opacity-80 shrink-0" />
           )}
           {item.seasons && item.seasons.length > 0 && onToggleExpand && (
              <div 
-               className="p-1 rounded-full hover:bg-black/5 active:bg-black/10 transition-colors cursor-pointer"
+               className="h-[22px] w-[22px] shrink-0 rounded-full hover:bg-black/5 active:bg-black/10 transition-colors cursor-pointer flex items-center justify-center"
                onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
              >
                  <ChevronDown size={18} strokeWidth={2} className={`text-[#9b9890] transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
@@ -1765,119 +1765,124 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove, isReadOnly }: { ite
   const [tempPoster, setTempPoster] = useState(item.poster || '');
 
   return (
-    <motion.div initial={{y:"100%", opacity: 0.8 }} animate={{y:0, opacity: 1 }} exit={{y:"100%", opacity: 0 }} transition={{type: "spring", damping: 28, stiffness: 200, mass: 0.8, ease: [0.16, 1, 0.3, 1]}} className="fixed inset-0 z-50 bg-brand-bg flex flex-col overflow-y-auto scrollable no-scrollbar w-full max-w-[430px] mx-auto overflow-x-hidden gpu-accel">
+    <motion.div initial={{y:"100%", opacity: 0.8 }} animate={{y:0, opacity: 1 }} exit={{y:"100%", opacity: 0 }} transition={{type: "spring", damping: 28, stiffness: 200, mass: 0.8, ease: [0.16, 1, 0.3, 1]}} className="fixed inset-0 z-50 bg-[#141414] overflow-y-auto scrollable no-scrollbar w-full max-w-[430px] mx-auto overflow-x-hidden gpu-accel">
       
-      {/* FULL WIDTH POSTER HERO */}
-      <div className="relative w-full min-h-[60vh] shrink-0 bg-[#e0dbd4] flex flex-col justify-end">
-        <div className="absolute inset-0">
-          {item.poster ? (
-             <img src={item.poster} className="w-full h-full object-cover object-top" />
-          ) : (
-             <div className="w-full h-full flex flex-col items-center justify-center border-b border-brand-border text-[64px]">
+      {/* POSTER HERO (Fixed in background or absolute) */}
+      <div className="absolute top-0 left-0 w-full h-[65vh] bg-[#1a1917]">
+         {item.poster ? (
+             <img src={item.poster} className="w-full h-full object-cover object-center" />
+         ) : (
+             <div className="w-full h-full flex flex-col items-center justify-center text-[64px]">
                {item.type === 'movie' ? '🎬' : '📺'}
-               <span className="text-brand-sub uppercase tracking-[1px] text-[10px] font-semibold mt-2">No Poster</span>
+               <span className="text-[#9b9890] uppercase tracking-[1px] text-[10px] font-semibold mt-2">No Poster</span>
              </div>
-          )}
-        </div>
+         )}
+         {/* Subtle gradient at the top for buttons visibility */}
+         <div className="absolute top-0 left-0 right-0 h-[20vh] bg-gradient-to-b from-black/50 to-transparent pointer-events-none" />
+      </div>
 
-        {/* Tall Gradient Overlay for legibility & seamless transition */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_top,#f0ede8_0%,#f0ede8_15%,rgba(240,237,232,0.85)_30%,rgba(240,237,232,0.4)_50%,transparent_85%)] pointer-events-none" />
+      {/* Top Actions: Back / Edit */}
+      <button onClick={onClose} className="absolute top-6 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-md text-white border border-white/10 z-20 cursor-pointer shadow-sm hover:bg-black/50 transition-all">
+         <X size={20} strokeWidth={2.5} />
+      </button>
+      {!isReadOnly && (
+         <button onClick={() => setIsEditingPoster(true)} className="absolute top-6 left-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/30 backdrop-blur-md text-white border border-white/10 z-20 cursor-pointer shadow-sm hover:bg-black/50 transition-all">
+            <ImagePlus size={16} />
+         </button>
+      )}
 
-        {/* Top Actions: Back / Edit */}
-        <button onClick={onClose} className="absolute top-6 left-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10 z-20 cursor-pointer shadow-sm hover:bg-black/30 active:scale-95 transition-all">
-           <ChevronLeft size={20} strokeWidth={2.5} className="-ml-0.5" />
-        </button>
-        {!isReadOnly && (
-           <button onClick={() => setIsEditingPoster(true)} className="absolute top-6 right-5 w-9 h-9 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-md text-white border border-white/10 z-20 cursor-pointer shadow-sm hover:bg-black/30 active:scale-95 transition-all">
-              <ImagePlus size={16} />
-           </button>
-        )}
-
-        {/* Hero Content Overlay */}
-        <div className="relative z-10 px-6 pb-6 w-full flex flex-col items-center text-center">
-            
-            <div className="flex items-center gap-2 mb-2 flex-wrap justify-center">
-               <span className="text-[11px] font-bold tracking-[0.08em] text-[#9b9890] uppercase leading-none">{item.type}</span>
-               {item.year && <span className="text-[11px] font-bold tracking-[0.08em] text-[#b8b5ad] leading-none">•</span>}
-               {item.year && <span className="text-[11px] font-bold tracking-[0.08em] text-[#9b9890] uppercase leading-none">{item.year}</span>}
+      {/* CONTENT SHEET Overlapping the poster */}
+      <div className="relative z-10 mt-[55vh] min-h-[45vh] bg-[#f5f3ef] rounded-t-[32px] px-6 pt-8 pb-32 shadow-[0_-8px_32px_rgba(0,0,0,0.12)]">
+         
+         {/* Header row: TYPE YEAR & RATING */}
+         <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center gap-2">
+               <span className="text-[12px] font-bold tracking-[0.08em] text-[#9b9890] uppercase leading-none">{item.type}</span>
+               {item.year && <span className="text-[12px] font-bold tracking-[0.05em] text-[#9b9890] leading-none">{item.year}</span>}
             </div>
+            {item.rating && (
+               <div className="flex items-center gap-1.5 text-[14px] font-bold text-[#1a1917]">
+                  <Star size={14} className="fill-[#e8a020] text-[#e8a020]" />
+                  <span>{item.rating}</span>
+               </div>
+            )}
+         </div>
 
-            <h1 className="font-serif text-[48px] sm:text-[56px] leading-[0.95] text-[#1a1917] mb-5 tracking-[-0.03em] line-clamp-3">{item.title}</h1>
-            
-            <div className="flex gap-2 flex-wrap justify-center items-center">
-               {item.rating && (
-                  <span className="text-[11px] font-bold px-3 py-1.5 rounded-[12px] bg-white/40 backdrop-blur-md shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-[#1a1917] border border-white/40 flex items-center gap-1">
-                     <Star size={12} className="fill-[#e8a020] text-[#e8a020]" /> IMDb {item.rating}
-                  </span>
-               )}
-               {item.genre && item.genre.split(',').map(g => g.trim()).map(g => (
-                  <span key={g} className="text-[11px] font-bold px-3 py-1.5 rounded-[12px] bg-white/40 backdrop-blur-md shadow-[0_2px_8px_rgba(0,0,0,0.04)] text-[#1a1917] border border-white/40">
+         {/* Title */}
+         <h1 className="font-serif text-[42px] leading-[1.05] text-[#1a1917] mb-5 tracking-[-0.03em]">{item.title}</h1>
+
+         {/* Genres */}
+         {item.genre && (
+            <div className="flex flex-wrap gap-2 mb-6">
+               {item.genre.split(',').map(g => g.trim()).map(g => (
+                  <span key={g} className="text-[13px] font-semibold px-3 py-1.5 rounded-[8px] bg-white text-[#1a1917] border border-[#e0ddd6] shadow-sm">
                      {g}
                   </span>
                ))}
             </div>
-        </div>
-      </div>
+         )}
 
-      <div className="relative z-10 flex-1 bg-brand-bg px-6 pt-4 pb-32 flex flex-col">
-        <p className="text-[14px] text-[#9b9890] font-sans leading-[1.6] mb-8">{item.synopsis || "No synopsis available for this title."}</p>
+         {/* Synopsis */}
+         <p className="text-[16px] text-[#8a8781] font-sans leading-[1.65] mb-10">
+            {item.synopsis || "No synopsis available for this title."}
+         </p>
 
-        {/* Cast & Crew Headers */}
-        <div className="flex flex-col gap-5 mb-8 bg-white border border-[#e0ddd6] rounded-[20px] p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-           <div className="flex flex-col gap-1">
-              <span className="text-[11px] font-bold tracking-[0.08em] text-[#b8b5ad] uppercase">Director</span>
-              <span className="text-[14px] font-medium text-[#1a1917]">{item.director || 'N/A'}</span>
-           </div>
-           
-           <div className="h-[1px] w-full bg-[#e0ddd6]/50" />
-           
-           <div className="flex flex-col gap-1.5">
-              <span className="text-[11px] font-bold tracking-[0.08em] text-[#b8b5ad] uppercase">Cast</span>
-              {item.cast && item.cast.length > 0 ? (
-                 <div className="flex flex-wrap gap-2 mt-1">
-                    {item.cast.map(actor => (
-                       <span key={actor} className="text-[13px] font-medium text-[#1a1917] bg-[#f0ede8] px-3 py-1.5 rounded-[8px] border border-[#d0cac3]/50">
-                          {actor}
-                       </span>
-                    ))}
-                 </div>
-              ) : (
-                 <span className="text-[14px] font-medium text-[#1a1917]">N/A</span>
-              )}
-           </div>
-        </div>
+         {/* Details Card: Director & Cast */}
+         <div className="bg-white border border-[#e0ddd6] rounded-[24px] p-6 shadow-sm mb-8 flex flex-col gap-6">
+            <div className="flex flex-col gap-1.5">
+               <span className="text-[11px] font-bold tracking-[0.08em] text-[#b8b5ad] uppercase">Director</span>
+               <span className="text-[16px] font-medium text-[#1a1917]">{item.director || 'N/A'}</span>
+            </div>
+            
+            <div className="h-[1px] w-full bg-[#e0ddd6]/60" />
+            
+            <div className="flex flex-col gap-2">
+               <span className="text-[11px] font-bold tracking-[0.08em] text-[#b8b5ad] uppercase">Cast</span>
+               {item.cast && item.cast.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                     {item.cast.map(actor => (
+                        <span key={actor} className="text-[14px] font-medium text-[#1a1917] bg-[#f5f3ef] px-4 py-2 rounded-full border border-[#e0ddd6]">
+                           {actor}
+                        </span>
+                     ))}
+                  </div>
+               ) : (
+                  <span className="text-[16px] font-medium text-[#1a1917]">N/A</span>
+               )}
+            </div>
+         </div>
 
-        {/* Status Actions */}
-        {!isReadOnly && (
-           <div className="flex flex-col gap-2 bg-white rounded-[16px] p-1.5 border border-[#e0ddd6] shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-6">
-              <div className="flex gap-1 w-full">
-                 <button 
-                   onClick={() => onUpdate({status: 'plan'})} 
-                   className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'plan' || !item.status ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
-                 >
-                   Plan to Watch
-                 </button>
-                 <button 
-                   onClick={() => onUpdate({status: 'watching'})} 
-                   className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'watching' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
-                 >
-                   Watching
-                 </button>
-                 <button 
-                   onClick={() => onUpdate({status: 'completed'})} 
-                   className={`flex-1 py-3 rounded-[12px] text-[12px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'completed' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
-                 >
-                   Completed
-                 </button>
-              </div>
-           </div>
-        )}
+         {/* Status Actions */}
+         {!isReadOnly && (
+            <div className="flex flex-col gap-2 bg-white rounded-[20px] p-1.5 border border-[#e0ddd6] shadow-sm mb-8">
+               <div className="flex gap-1 w-full">
+                  <button 
+                    onClick={() => onUpdate({status: 'plan'})} 
+                    className={`flex-1 py-3.5 rounded-[16px] text-[13px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'plan' || !item.status ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
+                  >
+                    Plan to Watch
+                  </button>
+                  <button 
+                    onClick={() => onUpdate({status: 'watching'})} 
+                    className={`flex-1 py-3.5 rounded-[16px] text-[13px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'watching' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
+                  >
+                    Watching
+                  </button>
+                  <button 
+                    onClick={() => onUpdate({status: 'completed'})} 
+                    className={`flex-1 py-3.5 rounded-[16px] text-[13px] font-semibold transition-all duration-300 ease-out active:scale-[0.96] cursor-pointer w-full ${item.status === 'completed' ? 'bg-[#1a1917] text-white shadow-sm tracking-[0.01em]' : 'text-[#9b9890] hover:bg-black/5 hover:text-[#1a1917]'}`}
+                  >
+                    Completed
+                  </button>
+               </div>
+            </div>
+         )}
 
-        {!isReadOnly && (
-           <button onClick={() => { onRemove(item.id); onClose(); }} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[#d32f2f] hover:bg-[#d32f2f]/10 active:scale-[0.98] transition-all duration-300 ease-out mt-auto font-medium text-[13px] cursor-pointer">
-              <Trash2 size={16} /> Delete Title
-           </button>
-        )}
+         {!isReadOnly && (
+            <button onClick={() => { onRemove(item.id); onClose(); }} className="w-full flex items-center justify-center gap-2 py-4 rounded-[16px] text-[#d32f2f] hover:bg-[#d32f2f]/10 active:scale-[0.98] transition-all duration-300 ease-out mt-auto font-medium text-[14px] cursor-pointer">
+               <Trash2 size={18} /> Delete Title
+            </button>
+         )}
       </div>
 
       <AnimatePresence>
@@ -1912,7 +1917,7 @@ function ItemDetailView({ item, onClose, onUpdate, onRemove, isReadOnly }: { ite
 
 function ListCardSkeleton({ key }: { key?: any }) {
   return (
-    <div className="flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full animate-pulse bg-white rounded-[16px] border border-[#e0ddd6]/50 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+    <div className="flex items-center gap-[12px] p-[8px_16px_8px_8px] w-full min-h-[121px] max-h-[121px] h-[121px] animate-pulse bg-white rounded-[16px] border border-[#e0ddd6]/50 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
        <div className="w-[70px] h-[105px] rounded-[10px] bg-[#e0dbd4] shrink-0" />
        
        <div className="flex-1 min-w-0 flex flex-col justify-center py-1">
